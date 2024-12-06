@@ -1,5 +1,7 @@
-## why we used these libraries:
+# Stress tester
 
+
+## why we used these libraries:
 
 ```
  <iostream>: Used throughout for console output/input
@@ -22,19 +24,8 @@
  - Used in main() for test duration timing
  - Used in memoryStressTest() for sleep delays
 
- <iomanip>: Output formatting
- - setprecision(): Used in displayMemoryStatus() for memory size formatting
- - fixed: Used for floating-point number formatting
-
  <atomic>: Thread-safe variables
  - atomic<bool> running: Controls test termination
  - atomic<size_t> memoryAllocated: Tracks allocated memory
 
- <cstring>: String manipulation (C-style)
- - Not directly used in shown code, could be removed
- - Typically used with C-style strings
-
- <locale>: Localization support
- - Not directly used in shown code, could be removed
- - Often used for formatting numbers/dates
 ```
