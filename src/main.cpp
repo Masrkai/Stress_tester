@@ -6,13 +6,31 @@
 #include <iomanip>
 #include <atomic>
 #include <cstring>
+#include <locale>
+
 
 // Cross-platform color support
 #ifdef _WIN32
     #include <windows.h>
-    #define ENABLE_COLORS() SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+    #include <io.h>
+    #include <fcntl.h>
+
+    // Enable UTF-8 support and ANSI color processing
+    void enableWindowsConsole() {
+        // Set console to UTF-8 mode
+        SetConsoleOutputCP(CP_UTF8);
+        _setmode(_fileno(stdout), _O_U16TEXT);
+
+        // Enable ANSI color support
+        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD dwMode = 0;
+        GetConsoleMode(hOut, &dwMode);
+        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        SetConsoleMode(hOut, dwMode);
+    }
 #else
-    #define ENABLE_COLORS()
+    // No-op for non-Windows platforms
+    void enableWindowsConsole() {}
 #endif
 
 // ANSI color codes
@@ -118,7 +136,7 @@ void displayTimeProgress(int elapsedSeconds) {
 }
 
 int main() {
-    ENABLE_COLORS();
+    enableWindowsConsole();
     cout << MAGENTA << "\n=== System Stress Test Starting ===" << RESET << endl;
     cout << YELLOW << "Warning: This program will stress your system for " << TEST_DURATION << " seconds." << RESET << endl;
     cout << "Press Enter to continue...";
