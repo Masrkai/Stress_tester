@@ -97,13 +97,12 @@ void memoryStressTest() {
     vector<vector<int>*> memoryBlocks;
     try {
         while (running && memoryAllocated < TARGET_MEMORY) {
-            const size_t blockSize = 1024 * 1024; // 1MB blocks
+            const size_t blockSize =  1024 * 1024; // 1MB blocks
             vector<int>* block = new vector<int>(blockSize/sizeof(int), 1);
             memoryBlocks.push_back(block);
             memoryAllocated += blockSize;
-            
             displayMemoryStatus();
-            this_thread::sleep_for(chrono::milliseconds(100));
+            // Removed sleep delay
         }
     } catch (const bad_alloc& e) {
         lock_guard<mutex> lock(consoleMutex);
@@ -114,7 +113,6 @@ void memoryStressTest() {
         this_thread::sleep_for(chrono::milliseconds(100));
     }
 
-    // Cleanup
     for (auto block : memoryBlocks) {
         delete block;
     }
