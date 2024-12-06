@@ -1,27 +1,26 @@
 #include <iostream>
-#include <mutex>
 #include <vector>
 #include <thread>
 #include <chrono>
-#include <iomanip>
 #include <atomic>
-#include <cstring>
-#include <locale>
+#include <mutex>
+
+//#include <iomanip>
+//#include <cstring>
+//#include <locale>
 
 
-// Cross-platform color support
+//! Cross-platform color support
 #ifdef _WIN32
     #include <windows.h>
     #include <io.h>
     #include <fcntl.h>
 
     // Enable UTF-8 support and ANSI color processing
-    void enableWindowsConsole() {
-        // Set console to UTF-8 mode
+    void initializeConsole() {
         SetConsoleOutputCP(CP_UTF8);
         _setmode(_fileno(stdout), _O_U16TEXT);
 
-        // Enable ANSI color support
         HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
         DWORD dwMode = 0;
         GetConsoleMode(hOut, &dwMode);
@@ -29,8 +28,8 @@
         SetConsoleMode(hOut, dwMode);
     }
 #else
-    // No-op for non-Windows platforms
-    void enableWindowsConsole() {}
+    //? No-op for non-Windows platforms
+    void initializeConsole() {}
 #endif
 
 // ANSI color codes
@@ -48,8 +47,9 @@ atomic<size_t> memoryAllocated(0);
 const size_t TARGET_MEMORY = 1024 * 1024 * 1024; // 1 GB
 const int TEST_DURATION = 30; // seconds
 
-// Mutex for synchronizing console output
-mutex consoleMutex;
+
+//------------------------------------------------------------------------>  Displaying
+mutex consoleMutex; // Mutex for synchronizing console output
 
 void clearLine() {
     cout << "\r\033[K"; // Clear the current line
@@ -63,24 +63,51 @@ void moveCursorDown(int lines) {
     cout << "\033[" << lines << "B";
 }
 
-// Memory status display
+// Display functions
 void displayMemoryStatus() {
-    const int barWidth = 40;
+    const int barWidth = 30;
     float progress = static_cast<float>(memoryAllocated) / TARGET_MEMORY;
     int pos = static_cast<int>(barWidth * progress);
 
-    lock_guard<mutex> lock(consoleMutex);
-    clearLine();
-    cout << "Memory: [";
+    string output = "Memory: [";
     for (int i = 0; i < barWidth; ++i) {
-        if (i < pos) cout << GREEN "■" RESET;
-        else cout << "□";
+        if (i < pos) output += GREEN "■" RESET;
+        else output += "□";
     }
-    cout << "] " << fixed << setprecision(1) 
-         << (memoryAllocated / (1024.0 * 1024.0)) << "MB / "
-         << (TARGET_MEMORY / (1024.0 * 1024.0)) << "MB" << flush;
+    output += "] " + to_string(memoryAllocated / (1024 * 1024)) + "MB / "
+              + to_string(TARGET_MEMORY / (1024 * 1024)) + "MB";
+
+    clearLine();
+    cout << output << flush;
 }
 
+void displayTimeProgress(int elapsedSeconds) {
+    const int barWidth = 30;
+    float progress = static_cast<float>(elapsedSeconds) / TEST_DURATION;
+    int pos = static_cast<int>(barWidth * progress);
+
+    string output = "Time:   [";
+    for (int i = 0; i < barWidth; ++i) {
+        if (i < pos) output += CYAN "■" RESET;
+        else output += "□";
+    }
+    output += "] " + to_string(elapsedSeconds) + "s / " + to_string(TEST_DURATION) + "s";
+
+    clearLine();
+    cout << output << flush;
+}
+
+void updateDisplay(int elapsedSeconds) {
+    lock_guard<mutex> lock(consoleMutex);
+    clearLine();
+    displayTimeProgress(elapsedSeconds);
+    cout << endl;
+    displayMemoryStatus();
+    cout << endl;
+}
+
+
+//------------------------------------------------------------------------> Stressing
 // CPU stress test function
 void cpuStressTest(int threadId) {
     volatile double result = 1.0;
@@ -94,47 +121,55 @@ void cpuStressTest(int threadId) {
 
 // Memory stress test function
 void memoryStressTest() {
-    vector<vector<int>*> memoryBlocks;
+    // Create a vector to store pointers to dynamically allocated memory blocks.
+    // We use std::unique_ptr to ensure the memory is automatically freed when no longer needed.
+    vector<unique_ptr<vector<int>>> memoryBlocks;
+
     try {
+        // Continue allocating memory while the test is running and the allocated memory is below the target.
         while (running && memoryAllocated < TARGET_MEMORY) {
-            const size_t blockSize =  1024 * 1024; // 1MB blocks
-            vector<int>* block = new vector<int>(blockSize/sizeof(int), 1);
-            memoryBlocks.push_back(block);
+            const size_t blockSize = 1024 * 1024; // Define the size of each memory block (1 MB).
+
+            // Dynamically allocate a memory block (1 MB) using std::make_unique.
+            // Each block is a vector of integers initialized with the value '1'.
+            auto block = make_unique<vector<int>>(blockSize / sizeof(int), 1);
+
+            // Update the total memory allocated by adding the size of the new block.
             memoryAllocated += blockSize;
-            displayMemoryStatus();
-            // Removed sleep delay
+
+            // Move the unique pointer for the allocated block into the memoryBlocks vector.
+            // Using std::move is necessary because unique_ptr cannot be copied, only moved.
+            memoryBlocks.push_back(move(block));
+
+            // Note: There's no sleep delay here, meaning memory allocation occurs as fast as possible
+            // until the target memory is reached or an exception is thrown.
         }
     } catch (const bad_alloc& e) {
+        // If a memory allocation fails (e.g., system runs out of memory),
+        // handle the exception gracefully by showing an error message.
+
+        // lock_guard ensures only one thread accesses the console at a time to avoid garbled output.
         lock_guard<mutex> lock(consoleMutex);
+
+        // Print the error message in red, along with details of the exception.
         cout << "\n" << RED << "Memory allocation failed: " << e.what() << RESET << endl;
     }
 
+    // After the target memory is reached or an error occurs, the function enters this loop.
+    // It keeps the memory blocks allocated until the test ends (running becomes false).
     while (running) {
+        // Sleep for a short duration (100 ms) to avoid busy-waiting.
         this_thread::sleep_for(chrono::milliseconds(100));
     }
 
-    for (auto block : memoryBlocks) {
-        delete block;
-    }
+    // No explicit cleanup is required for memoryBlocks because it stores unique_ptr.
+    // When the vector (memoryBlocks) goes out of scope, all unique_ptrs in it automatically
+    // release their allocated memory. This ensures no memory leaks.
 }
 
-void displayTimeProgress(int elapsedSeconds) {
-    const int barWidth = 40;
-    float progress = static_cast<float>(elapsedSeconds) / TEST_DURATION;
-    int pos = static_cast<int>(barWidth * progress);
-
-    lock_guard<mutex> lock(consoleMutex);
-    clearLine();
-    cout << "Time:   [";
-    for (int i = 0; i < barWidth; ++i) {
-        if (i < pos) cout << CYAN "■" RESET;
-        else cout << "□";
-    }
-    cout << "] " << elapsedSeconds << "s / " << TEST_DURATION << "s" << flush;
-}
 
 int main() {
-    enableWindowsConsole();
+    initializeConsole();
     cout << MAGENTA << "\n=== System Stress Test Starting ===" << RESET << endl;
     cout << YELLOW << "Warning: This program will stress your system for " << TEST_DURATION << " seconds." << RESET << endl;
     cout << "Press Enter to continue...";
@@ -144,43 +179,40 @@ int main() {
     cout << BLUE << "\nDetected " << numCores << " CPU cores" << RESET << endl;
     cout << "\nStarting stress test...\n\n" << flush;
 
-    // Start timing
-    auto startTime = chrono::high_resolution_clock::now();
+    auto startTime = chrono::steady_clock::now();
 
-    // Create CPU stress threads
     vector<thread> cpuThreads;
     for (int i = 0; i < numCores; ++i) {
         cpuThreads.emplace_back(cpuStressTest, i);
     }
 
-    // Start memory stress thread
     thread memThread(memoryStressTest);
 
-    // Main loop with progress display
-    for (int i = 0; i <= TEST_DURATION; ++i) {
-        displayTimeProgress(i);
-        cout << endl;
-        this_thread::sleep_for(chrono::seconds(1));
-        moveCursorUp(1);
-    }
+    while (running) {
+        auto elapsedTime = chrono::steady_clock::now() - startTime;
+        int elapsedSeconds = chrono::duration_cast<chrono::seconds>(elapsedTime).count();
 
-    // Stop all tests
+        if (elapsedSeconds > TEST_DURATION) {
+            break;
+        }
+
+        updateDisplay(elapsedSeconds);
+        this_thread::sleep_for(chrono::milliseconds(250));
+        moveCursorUp(2);
+    }
+    cout << endl;
     running = false;
 
-    // Join all threads
     for (auto& thread : cpuThreads) {
         thread.join();
     }
     memThread.join();
 
-    // Move cursor past the progress bars
     cout << "\n\n";
 
-    // Calculate execution time
-    auto endTime = chrono::high_resolution_clock::now();
+    auto endTime = chrono::steady_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(endTime - startTime);
 
-    // Print results
     cout << MAGENTA << "=== Test Results ===" << RESET << endl;
     cout << CYAN << "Total execution time: " << duration.count() / 1000.0 << " seconds" << RESET << endl;
     cout << CYAN << "Maximum memory allocated: " << memoryAllocated / (1024 * 1024) << "MB" << RESET << endl;
