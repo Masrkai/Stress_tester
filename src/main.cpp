@@ -1,3 +1,4 @@
+#include <cmath>
 #include <iostream>
 #include <vector>
 #include <thread>
@@ -45,7 +46,7 @@ namespace ConsoleColors {
 }
 
 class SystemStressTest {
-private:
+ private:
     static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; // 1 GB
     static constexpr int TEST_DURATION = 30; // seconds
 
@@ -117,25 +118,51 @@ private:
 
     // Stress test implementations
     void cpuStressTest(int threadId) {
+        // Using doubles for both accumulators to avoid potential overflow
         volatile double result = 1.0;
+        double localSum = 0.0;
+
+        // Local counters for batch updating
         uint64_t intOps = 0;
         uint64_t floatOps = 0;
 
-        while (running) {
-            for (int i = 1; i < 10000 && running; i++) {
-                result *= i;
-                floatOps++; // One multiplication
-                result /= (i + 1);
-                floatOps++; // One division
+        // Constants to unroll the loop and increase instruction-level parallelism
+        constexpr int UNROLL_FACTOR = 8;
+        constexpr int BATCH_SIZE = 10000;
 
-                intOps += 2; // One addition and one increment of `i`
-        // Accumulate thread-local operation counts into global counters
-        totalIntOps.fetch_add(intOps, std::memory_order_relaxed);
-        totalFloatOps.fetch_add(floatOps, std::memory_order_relaxed);
-            }
+        // SIMD-friendly array for parallel operations
+        alignas(32) double factors[UNROLL_FACTOR];
+        for (int i = 0; i < UNROLL_FACTOR; i++) {
+            factors[i] = 1.0 + (i * 0.1);
         }
 
+        while (running) {
+            for (int i = 0; i < BATCH_SIZE && running; i += UNROLL_FACTOR) {
+                #pragma unroll
+                for (int j = 0; j < UNROLL_FACTOR; j++) {
+                    result *= factors[j];
+                    localSum += result;
+                    result *= M_PI;  // Using M_PI from cmath for additional complexity
+
+                    // Prevent over-optimization by the compiler
+                    if (result > 1e308) {
+                        result = 1.0;
+                        localSum = 0.0;
+                    }
+                }
+
+                floatOps += UNROLL_FACTOR * 3;  // Two multiplications and one addition per iteration
+                intOps += UNROLL_FACTOR + 2;    // Loop counters and comparisons
+            }
+
+            // Batch update atomic counters to reduce contention
+            totalIntOps.fetch_add(intOps, std::memory_order_relaxed);
+            totalFloatOps.fetch_add(floatOps, std::memory_order_relaxed);
+            intOps = 0;
+            floatOps = 0;
+        }
     }
+
 
     void memoryStressTest() {
         // Using smart pointers for automatic memory management
@@ -164,7 +191,7 @@ private:
         }
     }
 
-public:
+ public:
     void run() {
         ConsoleInitializer::initialize();
 
