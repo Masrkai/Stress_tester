@@ -1,5 +1,6 @@
 #include <cmath>
 #include <iostream>
+#include <list>
 #include <vector>
 #include <thread>
 #include <chrono>
@@ -163,10 +164,10 @@ class SystemStressTest {
         }
     }
 
-
+    //> USES LINKED LISTS
     void memoryStressTest() {
         // Using smart pointers for automatic memory management
-        std::vector<std::unique_ptr<std::vector<int>>> memoryBlocks;
+        std::list<std::unique_ptr<std::vector<int>>> memoryBlocks;
 
         try {
             while (running && memoryAllocated < TARGET_MEMORY) {
@@ -180,9 +181,9 @@ class SystemStressTest {
             }
         } catch (const std::bad_alloc& e) {
             std::lock_guard<std::mutex> lock(consoleMutex);
-            std::cout << "\n" << ConsoleColors::RED 
-                      << "Memory allocation failed: " << e.what()
-                      << ConsoleColors::RESET << std::endl;
+            std::cout << "\n" << ConsoleColors::RED
+                    << "Memory allocation failed: " << e.what()
+                    << ConsoleColors::RESET << std::endl;
         }
 
         // Keep memory allocated until test ends
@@ -190,6 +191,7 @@ class SystemStressTest {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
+
 
  public:
     void run() {
