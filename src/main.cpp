@@ -117,52 +117,47 @@ class SystemStressTest {
     }
 
 
-    // Stress test implementations
+    //> CPU Stress test implementation
     void cpuStressTest(int threadId) {
-        // Using doubles for both accumulators to avoid potential overflow
-        volatile double result = 1.0;
-        double localSum = 0.0;
-
-        // Local counters for batch updating
+        // Local counters for operations
         uint64_t intOps = 0;
         uint64_t floatOps = 0;
 
-        // Constants to unroll the loop and increase instruction-level parallelism
-        constexpr int UNROLL_FACTOR = 8;
-        constexpr int BATCH_SIZE = 10000;
-
-        // SIMD-friendly array for parallel operations
-        alignas(32) double factors[UNROLL_FACTOR];
-        for (int i = 0; i < UNROLL_FACTOR; i++) {
-            factors[i] = 1.0 + (i * 0.1);
-        }
+        // Constants to define the number of operations per loop iteration
+        constexpr int OPERATIONS_PER_ITERATION = 10000;
 
         while (running) {
-            for (int i = 0; i < BATCH_SIZE && running; i += UNROLL_FACTOR) {
-                #pragma unroll
-                for (int j = 0; j < UNROLL_FACTOR; j++) {
-                    result *= factors[j];
-                    localSum += result;
-                    result *= M_PI;  // Using M_PI from cmath for additional complexity
+            double result = 1.0;  // Initialize result for each batch
 
-                    // Prevent over-optimization by the compiler
-                    if (result > 1e308) {
-                        result = 1.0;
-                        localSum = 0.0;
-                    }
+            for (int i = 0; i < OPERATIONS_PER_ITERATION && running; ++i) {
+                // Perform a series of operations to stress the CPU
+                result *= M_PI;
+                result += std::sin(result);
+                result /= std::cos(result);
+
+                // Increment operation counters
+                floatOps += 3;  // Three floating-point operations per iteration
+                intOps += 1;    // One integer increment operation per iteration
+
+                // Prevent over-optimization by the compiler
+                if (result > 1e308) {
+                    result = 1.0;
                 }
-
-                floatOps += UNROLL_FACTOR * 3;  // Two multiplications and one addition per iteration
-                intOps += UNROLL_FACTOR + 2;    // Loop counters and comparisons
             }
 
-            // Batch update atomic counters to reduce contention
+            // Update atomic counters with local counts
             totalIntOps.fetch_add(intOps, std::memory_order_relaxed);
             totalFloatOps.fetch_add(floatOps, std::memory_order_relaxed);
+
+            // Reset local counters for the next batch
             intOps = 0;
             floatOps = 0;
+
+            // Sleep briefly to avoid busy-waiting and allow other threads to run
+            std::this_thread::sleep_for(std::chrono::microseconds(1));
         }
     }
+
 
     //> USES LINKED LISTS
     void memoryStressTest() {
