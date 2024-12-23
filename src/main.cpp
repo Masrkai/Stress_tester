@@ -124,7 +124,7 @@ class SystemStressTest {
         uint64_t floatOps = 0;
 
         // Constants to define the number of operations per loop iteration
-        constexpr int OPERATIONS_PER_ITERATION = 10000;
+        constexpr int OPERATIONS_PER_ITERATION = 1024;
 
         while (running) {
             double result = 1.0;  // Initialize result for each batch
