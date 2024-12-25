@@ -1,23 +1,24 @@
-#include <cmath>
-#include <iostream>
 #include <list>
+#include <mutex>
+#include <cmath>
 #include <vector>
 #include <thread>
 #include <chrono>
 #include <atomic>
-#include <mutex>
 #include <memory>
+#include <iostream>
 #include <assert.h>
 
  /*
  * Platform-specific console initialization
  * Encapsulates all Windows-specific code in a dedicated namespace
  */
+
 namespace ConsoleInitializer {
     #ifdef _WIN32
-        #include <windows.h>
         #include <io.h>
         #include <fcntl.h>
+        #include <windows.h>
 
         void initialize() {
             SetConsoleOutputCP(CP_UTF8);
@@ -50,7 +51,7 @@ class SystemStressTest {
  private:
     static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; // 1 GB
     static constexpr int TEST_DURATION = 30; // seconds
-    static constexpr int Multiplyier = 8;
+    static constexpr int Multiplyier = 8;   //TODO: User Input
 
     std::atomic<uint64_t> totalIntOps{0};
     std::atomic<uint64_t> totalFloatOps{0};
@@ -126,14 +127,14 @@ class SystemStressTest {
     //> CPU Stress test implementation
     void cpuStressTest(int threadId) {
         // Local counters for operations
-        uint64_t intOps = 0;
-        uint64_t floatOps = 0;
+        volatile uint64_t intOps = 0;
+        volatile uint64_t floatOps = 0;
 
         // Constants to define the number of operations per loop iteration
         constexpr int OPERATIONS_PER_ITERATION = 1024;
 
         while (running) {
-            double result = 1.0;  // Initialize result for each batch
+            volatile double result = 1.0;  // Initialize result for each batch
 
             for (int i = 0; i < OPERATIONS_PER_ITERATION && running; ++i) {
                 // Perform a series of operations to stress the CPU
