@@ -50,6 +50,7 @@ class SystemStressTest {
  private:
     static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; // 1 GB
     static constexpr int TEST_DURATION = 30; // seconds
+    static constexpr int Multiplyier = 8;
 
     std::atomic<uint64_t> totalIntOps{0};
     std::atomic<uint64_t> totalFloatOps{0};
@@ -68,9 +69,13 @@ class SystemStressTest {
 
     void displayMemoryStatus() const {
         static constexpr int barWidth = 30;
-        float progress = static_cast<float>(memoryAllocated) / TARGET_MEMORY;
+
+        // Use Multiplyier to adjust target memory for progress calculation
+        float adjustedTargetMemory = TARGET_MEMORY * Multiplyier;
+        float progress = static_cast<float>(memoryAllocated) / adjustedTargetMemory;
         int pos = static_cast<int>(barWidth * progress);
 
+        // Build progress bar
         std::string progressBar = "Memory: [";
         for (int i = 0; i < barWidth; ++i) {
             progressBar += (i < pos) ?
@@ -78,10 +83,11 @@ class SystemStressTest {
                 "□";
         }
 
+        // Clear the current console line and print the memory status
         clearLine();
         std::cout << progressBar << "] "
                   << memoryAllocated / (1024 * 1024) << "MB / "
-                  << TARGET_MEMORY / (1024 * 1024) << "MB" << std::flush;
+                  << adjustedTargetMemory / (1024 * 1024) << "MB" << std::flush;
     }
 
     void displayTimeProgress(int elapsedSeconds) const {
@@ -165,7 +171,7 @@ class SystemStressTest {
         std::list<std::unique_ptr<std::vector<int>>> memoryBlocks;
 
         try {
-            while (running && memoryAllocated < TARGET_MEMORY) {
+            while (running && memoryAllocated < Multiplyier * TARGET_MEMORY) {
                 static constexpr size_t blockSize = 1024 * 1024; // 1 MB blocks
                 auto block = std::make_unique<std::vector<int>>(
                     blockSize / sizeof(int), 1
