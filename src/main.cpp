@@ -1,24 +1,23 @@
-#include <list>
-#include <mutex>
-#include <cmath>
-#include <vector>
-#include <thread>
-#include <chrono>
-#include <atomic>
-#include <memory>
-#include <iostream>
-#include <assert.h>
+#include <list>         //! Used for managing a list of memory blocks in the memory stress test.
+#include <mutex>        //! Provides std::mutex for thread synchronization, ensuring safe access to shared resources.
+#include <cmath>        //? Used for mathematical functions like sin, cos, and M_PI in the CPU stress test.
+#include <vector>       //? Provides std::vector, used for dynamically allocated memory blocks.
+#include <thread>       //! Enables multithreading with std::thread.
+#include <chrono>       //! Provides utilities for handling time, including measuring elapsed time and thread sleeping.
+#include <atomic>       //! Provides std::atomic, enabling thread-safe access to shared counters and flags.
+#include <memory>       //! Provides std::unique_ptr, used for managing dynamically allocated memory.
+#include <iostream>     //? Provides input/output functionality, used for displaying progress and results.
+#include <cassert>      //! Provides assert(), used for runtime checks like ensuring system capabilities.
 
- /*
+/*
  * Platform-specific console initialization
  * Encapsulates all Windows-specific code in a dedicated namespace
  */
-
 namespace ConsoleInitializer {
-    #ifdef _WIN32
-        #include <io.h>
-        #include <fcntl.h>
-        #include <windows.h>
+#ifdef _WIN32
+    #include <io.h>         //> Windows-specific library for low-level I/O operations (used in console initialization).
+    #include <fcntl.h>      //> Windows-specific library for file control operations (used in console initialization).
+    #include <windows.h>    //> Windows-specific library for system calls like SetConsoleOutputCP and SetConsoleMode.
 
         void initialize() {
             SetConsoleOutputCP(CP_UTF8);
@@ -31,12 +30,19 @@ namespace ConsoleInitializer {
             consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
             assert(SetConsoleMode(consoleHandle, consoleMode) && "Failed to set console mode");
         }
-    #else
-        void initialize() {} // No-op for non-Windows platforms
-    #endif
+#else
+    void initialize() {} //* No-op for non-Windows platforms
+#endif
 }
 
-// ANSI color definitions moved to a dedicated namespace for better organization
+/*
+? ANSI color definitions moved to a dedicated namespace for better organization
+! The declaration
+> const char* const
+? specifies a constant pointer to a constant character string.
+! SECURITY REASONS THAT ARE UNNEGOTIABLE
+*/
+
 namespace ConsoleColors {
     const char* const RED = "\033[31m";
     const char* const BLUE = "\033[34m";
@@ -48,43 +54,44 @@ namespace ConsoleColors {
 }
 
 class SystemStressTest {
- private:
+private:
     static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; // 1 GB
     static constexpr int TEST_DURATION = 30; // seconds
-    static constexpr int Multiplyier = 8;   //TODO: User Input
+    static constexpr int MULTIPLIER = 8;   // Memory multiplier for stress test
+    static constexpr int BAR_WIDTH = 30;  // Progress bar width for time and memory displays
 
-    std::atomic<uint64_t> totalIntOps{0};
-    std::atomic<uint64_t> totalFloatOps{0};
-    std::atomic<bool> running{true};
-    std::atomic<size_t> memoryAllocated{0};
-    std::mutex consoleMutex;
+
+    // Shared atomic variables to track system metrics
+    std::atomic<uint64_t> totalIntOps{0};   // Total integer operations
+    std::atomic<uint64_t> totalFloatOps{0}; // Total floating-point operations
+    std::atomic<bool> running{true};        // Flag to indicate if the test is running
+    std::atomic<size_t> memoryAllocated{0}; // Memory allocated in bytes
+
+    std::mutex consoleMutex; // Protects console output from race conditions
 
     // Display helper methods
     void clearLine() const {
-        std::cout << "\r\033[K";
+        std::cout << "\r\033[K"; // Clear the current console line
     }
 
     void moveCursor(int lines, bool up) const {
-        std::cout << "\033[" << lines << (up ? 'A' : 'B');
+        std::cout << "\033[" << lines << (up ? 'A' : 'B'); // Move the cursor up or down
     }
 
     void displayMemoryStatus() const {
-        static constexpr int barWidth = 30;
-
-        // Use Multiplyier to adjust target memory for progress calculation
-        float adjustedTargetMemory = TARGET_MEMORY * Multiplyier;
+        float adjustedTargetMemory = TARGET_MEMORY * MULTIPLIER;
         float progress = static_cast<float>(memoryAllocated) / adjustedTargetMemory;
-        int pos = static_cast<int>(barWidth * progress);
+        int pos = static_cast<int>(BAR_WIDTH * progress);
 
-        // Build progress bar
+        // Build progress bar for memory usage
         std::string progressBar = "Memory: [";
-        for (int i = 0; i < barWidth; ++i) {
+        for (int i = 0; i < BAR_WIDTH; ++i) {
             progressBar += (i < pos) ?
                 std::string(ConsoleColors::GREEN) + "■" + ConsoleColors::RESET :
                 "□";
         }
 
-        // Clear the current console line and print the memory status
+        // Display the progress bar and memory usage
         clearLine();
         std::cout << progressBar << "] "
                   << memoryAllocated / (1024 * 1024) << "MB / "
@@ -92,17 +99,18 @@ class SystemStressTest {
     }
 
     void displayTimeProgress(int elapsedSeconds) const {
-        static constexpr int barWidth = 30;
         float progress = static_cast<float>(elapsedSeconds) / TEST_DURATION;
-        int pos = static_cast<int>(barWidth * progress);
+        int pos = static_cast<int>(BAR_WIDTH * progress);
 
+        // Build progress bar for elapsed time
         std::string progressBar = "Time:   [";
-        for (int i = 0; i < barWidth; ++i) {
+        for (int i = 0; i < BAR_WIDTH; ++i) {
             progressBar += (i < pos) ?
                 std::string(ConsoleColors::CYAN) + "■" + ConsoleColors::RESET :
                 "□";
         }
 
+        // Display the progress bar and elapsed time
         clearLine();
         std::cout << progressBar << "] "
                   << elapsedSeconds << "s / "
@@ -110,7 +118,8 @@ class SystemStressTest {
     }
 
     void updateDisplay(int elapsedSeconds) {
-        std::lock_guard<std::mutex> lock(consoleMutex);
+        std::lock_guard<std::mutex> lock(consoleMutex); // Prevent concurrent console access
+
         clearLine();
         displayTimeProgress(elapsedSeconds);
         std::cout << std::endl;
@@ -123,59 +132,51 @@ class SystemStressTest {
                   << std::flush;
     }
 
-
-    //> CPU Stress test implementation
+    // CPU Stress test implementation
     void cpuStressTest(int threadId) {
-        // Local counters for operations
-        volatile uint64_t intOps = 0;
-        volatile uint64_t floatOps = 0;
-
-        // Constants to define the number of operations per loop iteration
-        constexpr int OPERATIONS_PER_ITERATION = 1024;
+        volatile uint64_t intOps = 0;    // Local counter for integer operations
+        volatile uint64_t floatOps = 0; // Local counter for floating-point operations
+        constexpr int BATCH_SIZE = 1024; // Batch size for updates
 
         while (running) {
-            volatile double result = 1.0;  // Initialize result for each batch
+            volatile double result = 1.0;  // Intermediate computation result
 
-            for (int i = 0; i < OPERATIONS_PER_ITERATION && running; ++i) {
-                // Perform a series of operations to stress the CPU
+            // Perform a batch of operations
+            for (int i = 0; i < BATCH_SIZE && running; ++i) {
                 result *= M_PI;
                 result += std::sin(result);
                 result /= std::cos(result);
 
-                // Increment operation counters
-                floatOps += 3;  // Three floating-point operations per iteration
-                intOps += 1;    // One integer increment operation per iteration
+                floatOps += 3;  // Count three floating-point operations
+                intOps += 1;    // Count one integer operation
 
-                // Prevent over-optimization by the compiler
-                if (result > 1e308) {
+                if (result > 1e308) { // Reset result to avoid overflow
                     result = 1.0;
                 }
             }
 
-            // Update atomic counters with local counts
+            // Update shared atomic counters after each batch
             totalIntOps.fetch_add(intOps, std::memory_order_relaxed);
             totalFloatOps.fetch_add(floatOps, std::memory_order_relaxed);
 
-            // Reset local counters for the next batch
+            // Reset local counters
             intOps = 0;
             floatOps = 0;
 
-            // Sleep briefly to avoid busy-waiting and allow other threads to run
+            // Small sleep to allow other threads to execute
             std::this_thread::sleep_for(std::chrono::microseconds(1));
         }
     }
 
-
-    //> USES LINKED LISTS
+    // Memory Stress test
     void memoryStressTest() {
-        // Using smart pointers for automatic memory management
         std::list<std::unique_ptr<std::vector<int>>> memoryBlocks;
 
         try {
-            while (running && memoryAllocated < Multiplyier * TARGET_MEMORY) {
+            while (running && memoryAllocated < MULTIPLIER * TARGET_MEMORY) {
                 static constexpr size_t blockSize = 1024 * 1024; // 1 MB blocks
                 auto block = std::make_unique<std::vector<int>>(
-                    blockSize / sizeof(int), 1
+                    blockSize / sizeof(int), 1 // Fill block with dummy data
                 );
 
                 memoryAllocated += blockSize;
@@ -184,20 +185,19 @@ class SystemStressTest {
         } catch (const std::bad_alloc& e) {
             std::lock_guard<std::mutex> lock(consoleMutex);
             std::cout << "\n" << ConsoleColors::RED
-                    << "Memory allocation failed: " << e.what()
-                    << ConsoleColors::RESET << std::endl;
+                      << "Memory allocation failed: " << e.what()
+                      << ConsoleColors::RESET << std::endl;
         }
 
-        // Keep memory allocated until test ends
+        // Hold memory allocation until the test ends
         while (running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
 
-
- public:
+public:
     void run() {
-        ConsoleInitializer::initialize();
+        ConsoleInitializer::initialize(); // Platform-specific console initialization
 
         std::cout << ConsoleColors::MAGENTA
                   << "\n=== System Stress Test Starting ==="
@@ -211,7 +211,7 @@ class SystemStressTest {
         std::cout << "Press Enter to continue...";
         std::cin.get();
 
-        const auto numCores = std::thread::hardware_concurrency();
+        const auto numCores = std::thread::hardware_concurrency(); // Detect CPU cores
         assert(numCores > 0 && "Failed to detect CPU cores");
 
         std::cout << ConsoleColors::BLUE << "\nDetected "
@@ -234,31 +234,28 @@ class SystemStressTest {
         // Main monitoring loop
         while (running) {
             auto elapsedTime = std::chrono::steady_clock::now() - startTime;
-            int elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(
-                elapsedTime
-            ).count();
+            int elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count();
 
-            if (elapsedSeconds > TEST_DURATION) break;
+            if (elapsedSeconds > TEST_DURATION) break; // Stop test after duration
 
             updateDisplay(elapsedSeconds);
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
-            moveCursor(2, true);
+            moveCursor(2, true); // Move cursor up to overwrite previous output
         }
 
-        std::cout << std::endl;
-        running = false;
+        running = false; // Signal threads to stop
 
-        // Clean up threads
+        // Wait for all threads to finish
         for (auto& thread : cpuThreads) {
             thread.join();
         }
         memThread.join();
 
-        // Display results
+        // Display test results
         auto endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            endTime - startTime
-        );
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+        std::cout << std::endl;
 
         std::cout << "\n\n" << ConsoleColors::MAGENTA
                   << "=== Test Results ==="
@@ -283,12 +280,11 @@ class SystemStressTest {
         std::cout << ConsoleColors::CYAN
                   << "Total floating-point operations: " << totalFloatOps.load(std::memory_order_relaxed)
                   << ConsoleColors::RESET << std::endl;
-
     }
 };
 
 int main() {
     SystemStressTest test;
-    test.run();
+    test.run(); // Start the stress test
     return 0;
 }
