@@ -53,18 +53,70 @@ namespace ConsoleColors {
     const char* const MAGENTA = "\033[35m";
 }
 
+template<typename T>
+class LinkedList {
+private:
+    struct Node {
+        T data;
+        Node* next;
+
+        Node(T&& data) : data(std::move(data)), next(nullptr) {}
+    };
+
+    Node* head;
+    Node* tail;
+    size_t size;
+
+public:
+    LinkedList() : head(nullptr), tail(nullptr), size(0) {}
+
+    ~LinkedList() {
+        while (head) {
+            Node* temp = head;
+            head = head->next;
+            delete temp;
+        }
+    }
+
+    void push_back(T&& value) { // Accept rvalue reference
+        Node* newNode = new Node(std::move(value));
+        if (!head) {
+            head = tail = newNode;
+        } else {
+            tail->next = newNode;
+            tail = newNode;
+        }
+        ++size;
+    }
+
+    void clear() {
+        while (head) {
+            Node* temp = head;
+            head = head->next;
+            delete temp;
+        }
+        head = tail = nullptr;
+        size = 0;
+    }
+
+    size_t getSize() const {
+        return size;
+    }
+};
+
+
+
 class SystemStressTest {
 private:
-    static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; // 1 GB
+    static constexpr int BAR_WIDTH = 30;     // Progress bar width for time and memory displays
+    static constexpr int MULTIPLIER = 8;     // Memory multiplier for stress test
     static constexpr int TEST_DURATION = 30; // seconds
-    static constexpr int MULTIPLIER = 8;   // Memory multiplier for stress test
-    static constexpr int BAR_WIDTH = 30;  // Progress bar width for time and memory displays
-
+    static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; //? 1 GB Scaling bytes -> Mega -> Giga
 
     // Shared atomic variables to track system metrics
+    std::atomic<bool> running{true};        // Flag to indicate if the test is running
     std::atomic<uint64_t> totalIntOps{0};   // Total integer operations
     std::atomic<uint64_t> totalFloatOps{0}; // Total floating-point operations
-    std::atomic<bool> running{true};        // Flag to indicate if the test is running
     std::atomic<size_t> memoryAllocated{0}; // Memory allocated in bytes
 
     std::mutex consoleMutex; // Protects console output from race conditions
@@ -127,160 +179,170 @@ private:
         std::cout << std::endl;
 
         // Display integer and floating-point operation statistics
-        std::cout << "INT:   "    << totalIntOps.load(std::memory_order_relaxed) << " ops"
-                  << " | FLOAT: " << totalFloatOps.load(std::memory_order_relaxed) << " ops"
-                  << std::flush;
+        std::cout << "HASH OPS: "
+                  << totalIntOps.load(std::memory_order_relaxed)
+                  << " ops" << std::flush;
+
     }
 
-    // CPU Stress test implementation
-    void cpuStressTest(int threadId) {
-        volatile uint64_t intOps = 0;    // Local counter for integer operations
-        volatile uint64_t floatOps = 0; // Local counter for floating-point operations
-        constexpr int BATCH_SIZE = 1024; // Batch size for updates
+    //> CPU Stress test implementation with an extremely compute-intensive hash "SHA-256" simulation
+    void cpuHashStressTest(int threadId) {
+        volatile uint64_t hashOps = 0; // Local counter for hashing operations
+        constexpr int BATCH_SIZE = 128; // Lower batch size for more computation per op
+
+        // Compute-intensive hash function using modular exponentiation
+        auto computeIntensiveHash = [](uint64_t base, uint64_t exponent, uint64_t mod) -> uint64_t {
+            uint64_t result = 1;
+            for (uint64_t i = 0; i < exponent; ++i) {
+                result = (result * base) % mod;
+            }
+            return result;
+        };
 
         while (running) {
-            volatile double result = 1.0;  // Intermediate computation result
+            volatile uint64_t hashValue = 0; // Intermediate computation result
 
-            // Perform a batch of operations
+            // Perform a batch of hashing operations
             for (int i = 0; i < BATCH_SIZE && running; ++i) {
-                result *= M_PI;
-                result += std::sin(result);
-                result /= std::cos(result);
+                uint64_t randomBase = threadId * 12345 + i;  // Simulated random data
+                uint64_t randomExponent = (i % 1000) + 500;  // Arbitrary exponent
+                uint64_t randomModulus = 1e9 + 7;            // Large prime modulus
 
-                floatOps += 3;  // Count three floating-point operations
-                intOps += 1;    // Count one integer operation
+                // Compute-intensive hashing
+                hashValue = computeIntensiveHash(randomBase, randomExponent, randomModulus);
 
-                if (result > 1e308) { // Reset result to avoid overflow
-                    result = 1.0;
+                // Simulate work on the hashValue to avoid compiler optimizations
+                if (hashValue % 1024 == 0) {
+                    hashValue += threadId;
                 }
+
+                hashOps += 1; // Increment hash operation count
             }
 
             // Update shared atomic counters after each batch
-            totalIntOps.fetch_add(intOps, std::memory_order_relaxed);
-            totalFloatOps.fetch_add(floatOps, std::memory_order_relaxed);
+            totalIntOps.fetch_add(hashOps, std::memory_order_relaxed);
 
-            // Reset local counters
-            intOps = 0;
-            floatOps = 0;
+            // Reset local counter
+            hashOps = 0;
 
-            // Small sleep to allow other threads to execute
-            std::this_thread::sleep_for(std::chrono::microseconds(1));
+            // No sleep to maximize CPU stress
         }
     }
 
     // Memory Stress test
     void memoryStressTest() {
-        std::list<std::unique_ptr<std::vector<int>>> memoryBlocks;
+        LinkedList<std::unique_ptr<std::vector<int>>> memoryBlocks;
 
         try {
             while (running && memoryAllocated < MULTIPLIER * TARGET_MEMORY) {
-                static constexpr size_t blockSize = 1024 * 1024; // 1 MB blocks
+                static constexpr size_t blockSize = 1024 * 1024;
+
                 auto block = std::make_unique<std::vector<int>>(
                     blockSize / sizeof(int), 1 // Fill block with dummy data
                 );
 
                 memoryAllocated += blockSize;
-                memoryBlocks.push_back(std::move(block));
+                memoryBlocks.push_back(std::move(block)); // Transfer ownership
             }
         } catch (const std::bad_alloc& e) {
             std::lock_guard<std::mutex> lock(consoleMutex);
             std::cout << "\n" << ConsoleColors::RED
-                      << "Memory allocation failed: " << e.what()
-                      << ConsoleColors::RESET << std::endl;
+                    << "Memory allocation failed: " << e.what()
+                    << ConsoleColors::RESET << std::endl;
         }
 
-        // Hold memory allocation until the test ends
         while (running) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
 
 public:
-    void run() {
-        ConsoleInitializer::initialize(); // Platform-specific console initialization
+  void run() {
+    ConsoleInitializer::initialize(); // Platform-specific console initialization
 
-        std::cout << ConsoleColors::MAGENTA
-                  << "\n=== System Stress Test Starting ==="
-                  << ConsoleColors::RESET << std::endl;
+    std::cout << ConsoleColors::MAGENTA
+              << "\n=== System Stress Test Starting ==="
+              << ConsoleColors::RESET << std::endl;
 
-        std::cout << ConsoleColors::YELLOW
-                  << "Warning: This program will stress your system for "
-                  << TEST_DURATION << " seconds."
-                  << ConsoleColors::RESET << std::endl;
+    std::cout << ConsoleColors::YELLOW
+              << "Warning: This program will stress your system for "
+              << TEST_DURATION << " seconds."
+              << ConsoleColors::RESET << std::endl;
 
-        std::cout << "Press Enter to continue...";
-        std::cin.get();
+    std::cout << "Press Enter to continue...";
+    std::cin.get();
 
-        const auto numCores = std::thread::hardware_concurrency(); // Detect CPU cores
-        assert(numCores > 0 && "Failed to detect CPU cores");
+    const auto numCores = std::thread::hardware_concurrency(); // Detect CPU cores
+    assert(numCores > 0 && "Failed to detect CPU cores");
 
-        std::cout << ConsoleColors::BLUE << "\nDetected "
-                  << numCores << " CPU cores"
-                  << ConsoleColors::RESET << std::endl;
+    std::cout << ConsoleColors::BLUE << "\nDetected "
+              << numCores << " CPU cores"
+              << ConsoleColors::RESET << std::endl;
 
-        std::cout << "\nStarting stress test...\n\n" << std::flush;
+    std::cout << "\nStarting stress test...\n\n" << std::flush;
 
-        auto startTime = std::chrono::steady_clock::now();
+    auto startTime = std::chrono::steady_clock::now();
 
-        // Launch CPU stress threads
-        std::vector<std::thread> cpuThreads;
-        for (unsigned int i = 0; i < numCores; ++i) {
-            cpuThreads.emplace_back(&SystemStressTest::cpuStressTest, this, i);
-        }
+    // Launch CPU stress threads
+    std::vector<std::thread> cpuThreads;
+    for (unsigned int i = 0; i < numCores; ++i) {
+        cpuThreads.emplace_back(&SystemStressTest::cpuHashStressTest, this, i); // Launch hashing threads
+    }
 
-        // Launch memory stress thread
-        std::thread memThread(&SystemStressTest::memoryStressTest, this);
+    // Launch memory stress thread
+    std::thread memThread(&SystemStressTest::memoryStressTest, this);
 
-        // Main monitoring loop
-        while (running) {
-            auto elapsedTime = std::chrono::steady_clock::now() - startTime;
-            int elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count();
+    // Main monitoring loop
+    int elapsedSeconds = 0;
+    while (elapsedSeconds <= TEST_DURATION) {
+        auto elapsedTime = std::chrono::steady_clock::now() - startTime;
+        elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count();
 
-            if (elapsedSeconds > TEST_DURATION) break; // Stop test after duration
+        updateDisplay(elapsedSeconds);
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        moveCursor(2, true); // Move cursor up to overwrite previous output
+    }
 
-            updateDisplay(elapsedSeconds);
-            std::this_thread::sleep_for(std::chrono::milliseconds(250));
-            moveCursor(2, true); // Move cursor up to overwrite previous output
-        }
+    running = false; // Signal threads to stop
 
-        running = false; // Signal threads to stop
-
-        // Wait for all threads to finish
-        for (auto& thread : cpuThreads) {
+    // Wait for all threads to finish
+    for (auto& thread : cpuThreads) {
+        if (thread.joinable()) {
             thread.join();
         }
-        memThread.join();
-
-        // Display test results
-        auto endTime = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-
-        std::cout << std::endl;
-
-        std::cout << "\n\n" << ConsoleColors::MAGENTA
-                  << "=== Test Results ==="
-                  << ConsoleColors::RESET << std::endl;
-
-        std::cout << ConsoleColors::CYAN
-                  << "Total execution time: " << duration.count() / 1000.0
-                  << " seconds" << ConsoleColors::RESET << std::endl;
-
-        std::cout << ConsoleColors::CYAN
-                  << "Maximum memory allocated: " << memoryAllocated / (1024 * 1024)
-                  << "MB" << ConsoleColors::RESET << std::endl;
-
-        std::cout << ConsoleColors::CYAN
-                  << "CPU cores utilized: " << numCores
-                  << ConsoleColors::RESET << std::endl;
-
-        std::cout << ConsoleColors::CYAN
-                  << "Total integer operations: " << totalIntOps.load(std::memory_order_relaxed)
-                  << ConsoleColors::RESET << std::endl;
-
-        std::cout << ConsoleColors::CYAN
-                  << "Total floating-point operations: " << totalFloatOps.load(std::memory_order_relaxed)
-                  << ConsoleColors::RESET << std::endl;
     }
+    if (memThread.joinable()) {
+        memThread.join();
+    }
+
+    // Display test results
+    auto endTime = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+    std::cout << std::endl;
+
+    std::cout << "\n\n" << ConsoleColors::MAGENTA
+              << "=== Test Results ==="
+              << ConsoleColors::RESET << std::endl;
+
+    std::cout << ConsoleColors::CYAN
+              << "Total execution time: " << duration.count() / 1000.0
+              << " seconds" << ConsoleColors::RESET << std::endl;
+
+    std::cout << ConsoleColors::CYAN
+              << "Maximum memory allocated: " << memoryAllocated / (1024 * 1024)
+              << "MB" << ConsoleColors::RESET << std::endl;
+
+    std::cout << ConsoleColors::CYAN
+              << "CPU cores utilized: " << numCores
+              << ConsoleColors::RESET << std::endl;
+
+    std::cout << ConsoleColors::CYAN
+            << "Total hashing operations: " << totalIntOps.load(std::memory_order_relaxed) 
+            << " ops" << ConsoleColors::RESET << std::endl;
+
+  }
+
 };
 
 int main() {
