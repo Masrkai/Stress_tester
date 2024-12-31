@@ -1,3 +1,8 @@
+    // static constexpr size_t SMALL_BLOCK_SIZE = 256 * 1024;      // 256 KB blocks
+    // static constexpr size_t LARGE_BLOCK_SIZE = 1024 * 1024;     // 1 MB blocks
+
+
+
 
     class Stack {
     private:

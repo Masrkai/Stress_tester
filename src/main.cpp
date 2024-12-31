@@ -97,8 +97,6 @@ private:
     static constexpr int BAR_WIDTH = 30;                        // Progress bar width for time and memory displays
     static constexpr int MULTIPLIER = 8;                        // Memory multiplier for stress test
     static constexpr int TEST_DURATION = 30;                    // seconds
-    static constexpr size_t SMALL_BLOCK_SIZE = 256 * 1024;      // 256 KB blocks
-    static constexpr size_t LARGE_BLOCK_SIZE = 1024 * 1024;     // 1 MB blocks
     static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; //? 1 GB Scaling bytes -> Mega -> Giga
 
     // Shared atomic variables to track system metrics
@@ -138,23 +136,40 @@ private:
     }
 
     void displayTimeProgress(int elapsedSeconds) const {
+        // Calculate the progress as a fraction of the total test duration.
+        // Example: If elapsedSeconds = 10 and TEST_DURATION = 30,
+        //          progress = 0.3 (30% progress).
         float progress = static_cast<float>(elapsedSeconds) / TEST_DURATION;
+
+        // Map the progress fraction to a position on the progress bar.
+        // Example: If BAR_WIDTH = 30 and progress = 0.3, pos = 15 (30% of 30).
         int pos = static_cast<int>(BAR_WIDTH * progress);
 
-        // Build progress bar for elapsed time
+        // Initialize the progress bar string with a label "Time:   [".
         std::string progressBar = "Time:   [";
+
+        // Build the visual representation of the progress bar.
         for (int i = 0; i < BAR_WIDTH; ++i) {
-            progressBar += (i < pos) ?
-                std::string(ConsoleColors::CYAN) + "■" + ConsoleColors::RESET :
-                "□";
+            if (i < pos) {
+                // Add a filled segment (■) for positions less than `pos`.
+                // Use console color (CYAN) for enhanced visualization.
+                progressBar += std::string(ConsoleColors::CYAN) + "■" + ConsoleColors::RESET;
+            } else {
+                // Add an empty segment (□) for positions greater than or equal to `pos`.
+                progressBar += "□";
+            }
         }
 
-        // Display the progress bar and elapsed time
+        // Clear the current console line (to overwrite the previous progress bar).
         clearLine();
+
+        // Output the progress bar, current elapsed time, and total test duration.
+        // Example output: "Time:   [■■■■□□□□□□] 10s / 30s"
         std::cout << progressBar << "] "
-                  << elapsedSeconds << "s / "
-                  << TEST_DURATION << "s" << std::flush;
+                << elapsedSeconds << "s / "
+                << TEST_DURATION << "s" << std::flush;
     }
+
 
     void updateDisplay(int elapsedSeconds) {
         std::lock_guard<std::mutex> lock(consoleMutex); // Prevent concurrent console access
@@ -172,54 +187,63 @@ private:
 
     }
 
-    //> CPU Stress test implementation with an extremely compute-intensive hash "SHA-256" simulation
-    void cpuHashStressTest(int threadId) {
-        constexpr int BATCH_SIZE = 1024 * 1024; // Large batch size for high compute intensity
-        constexpr int CHUNK_SIZE = 1024;       // Smaller chunk size for frequent updates
+    // Function to simulate a compute-intensive CPU stress test using a custom hash-like operation.
+    // This function is designed to run on a specific thread and perform a large number of operations
+    // involving modular exponentiation and nested computation to simulate high CPU load.
 
-        // Highly compute-intensive hash function using nested modular exponentiation
+    void cpuHashStressTest(int threadId) {
+        constexpr int BATCH_SIZE = 1024 * 1024; // Total number of hash operations in a batch.
+        constexpr int CHUNK_SIZE = 1024;       // Number of operations after which shared counter is updated.
+
+        // Define a compute-intensive hash-like function that uses nested modular exponentiation.
         auto computeIntensiveHash = [](uint64_t base, uint64_t exponent, uint64_t mod) -> uint64_t {
-            uint64_t result = 1;
-            uint64_t nestedFactor = 1;
+            uint64_t result = 1;      // Result of modular exponentiation
+            uint64_t nestedFactor = 1; // Additional factor to amplify computation complexity
+
+            // Perform modular exponentiation with nested computation for additional complexity.
             for (uint64_t i = 0; i < exponent; ++i) {
-                result = (result * base) % mod;
-                nestedFactor = (nestedFactor * result) % mod; // Nested computation to amplify cost
-                if (i % 10 == 0) { // Periodic additional computation
-                    result = (result + nestedFactor) % mod;
+                result = (result * base) % mod;                 // Base modular exponentiation
+                nestedFactor = (nestedFactor * result) % mod;   // Nested computation step
+
+                // Periodic computation to simulate non-linear computational cost.
+                if (i % 10 == 0) {
+                    result = (result + nestedFactor) % mod;     // Add nested result periodically
                 }
             }
-            return result;
+            return result; // Return the final computed value
         };
 
-        uint64_t localHashOps = 0; // Local counter for hashing operations
+        uint64_t localHashOps = 0; // Local count of hash operations performed by this thread.
 
+        // Main loop for stress testing
         while (running) {
-            volatile uint64_t hashValue = 0; // Intermediate computation result
+            volatile uint64_t hashValue = 0; // Temporary variable to store intermediate hash results.
 
-            // Perform a batch of hashing operations
+            // Perform a batch of hash operations.
             for (int i = 0; i < BATCH_SIZE && running; ++i) {
-                uint64_t randomBase = threadId * 123456789 + i * 987654321;  // Simulated complex random data
-                uint64_t randomExponent = ((i % 2000) + 500) * (threadId % 10 + 1); // Larger arbitrary exponent
-                uint64_t randomModulus = 1e9 + 12347;  // Larger prime modulus for increased complexity
+                // Generate pseudo-random input values for hashing.
+                uint64_t randomBase = threadId * 123456789 + i * 987654321;  
+                uint64_t randomExponent = ((i % 2000) + 500) * (threadId % 10 + 1); 
+                uint64_t randomModulus = 1e9 + 12347; 
 
-                // Compute-intensive hashing with additional complexity
+                // Compute the hash-like value with the custom function.
                 hashValue = computeIntensiveHash(randomBase, randomExponent, randomModulus);
 
-                // Simulate additional work on the hashValue to avoid compiler optimizations
+                // Additional operation to avoid compiler optimizations on hashValue.
                 if (hashValue % 1024 == 0) {
                     hashValue = (hashValue + threadId) * (randomBase % 7);
                 }
 
-                ++localHashOps; // Increment local hash operation count
+                ++localHashOps; // Increment local hash operation counter.
 
-                // Update the shared counter after each chunk
+                // Update shared counter periodically to reduce contention.
                 if (localHashOps % CHUNK_SIZE == 0) {
                     hashOps.fetch_add(CHUNK_SIZE, std::memory_order_relaxed);
-                    localHashOps = 0;
+                    localHashOps = 0; // Reset local counter.
                 }
             }
 
-            // Update any remaining operations in the local counter
+            // Add any remaining operations in the local counter to the shared counter.
             if (localHashOps > 0) {
                 hashOps.fetch_add(localHashOps, std::memory_order_relaxed);
                 localHashOps = 0;
@@ -227,6 +251,16 @@ private:
         }
     }
 
+/*
+
+makes something like this:
+
++-------------------+     +-------------------+     +-------------------+
+| std::vector<int>  | --> | std::vector<int>  | --> | std::vector<int>  | --> NULL
+| {1, 1, 1, ...}    |     | {1, 1, 1, ...}    |     | {1, 1, 1, ...}    |
++-------------------+     +-------------------+     +-------------------+
+
+*/
     // Function to stress test memory allocation
     void memoryStressTest() {
         // Linked list to store memory blocks (using unique_ptr for automatic memory management)
@@ -237,9 +271,18 @@ private:
             while (running && memoryAllocated < MULTIPLIER * TARGET_MEMORY) {
                 static constexpr size_t blockSize = 1024 * 1024; // Block size of 1 MB
 
-                // Allocate a block of memory, filled with dummy data
+                // Create a unique pointer to a dynamically allocated vector of integers.
+                // The vector will simulate a block of memory for operations like memory testing or simulation.
                 auto block = std::make_unique<std::vector<int>>(
-                    blockSize / sizeof(int), 1 // Each block is filled with the value 1
+                    blockSize / sizeof(int),  // The size of the vector is determined by dividing blockSize by sizeof(int).
+                                                // This calculates how many integers can fit into the given block size.
+                                                // Example: If blockSize is 1024 bytes and sizeof(int) is 4 bytes,
+                                                // the vector will have 1024 / 4 = 256 elements.
+
+                    1                // The initial value of each element in the vector.
+                                           // Here, all elements of the vector are initialized to the value 1.
+                                           // This ensures the block is filled with a known value, which may
+                                           // be useful for certain simulations or tests.
                 );
 
                 // Update the total allocated memory counter
@@ -263,7 +306,6 @@ private:
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
-
 
 public:
   void run() {
