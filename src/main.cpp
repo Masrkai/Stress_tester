@@ -1,4 +1,3 @@
-#include <list>         //! Used for managing a list of memory blocks in the memory stress test.
 #include <mutex>        //! Provides std::mutex for thread synchronization, ensuring safe access to shared resources.
 #include <cmath>        //? Used for mathematical functions like sin, cos, and M_PI in the CPU stress test.
 #include <vector>       //? Provides std::vector, used for dynamically allocated memory blocks.
@@ -6,8 +5,8 @@
 #include <chrono>       //! Provides utilities for handling time, including measuring elapsed time and thread sleeping.
 #include <atomic>       //! Provides std::atomic, enabling thread-safe access to shared counters and flags.
 #include <memory>       //! Provides std::unique_ptr, used for managing dynamically allocated memory.
-#include <iostream>     //? Provides input/output functionality, used for displaying progress and results.
 #include <cassert>      //! Provides assert(), used for runtime checks like ensuring system capabilities.
+#include <iostream>     //? Provides input/output functionality, used for displaying progress and results.
 
 /*
  * Platform-specific console initialization
@@ -54,70 +53,139 @@ namespace ConsoleColors {
 }
 
 template<typename T>
-class LinkedList {
-private:
-    struct Node {
-        T data;
-        Node* next;
+    class LinkedList {
+    private:
+        struct Node {
+            T data;
+            Node* next;
 
-        Node(T&& data) : data(std::move(data)), next(nullptr) {}
+        explicit Node(T&& data) : data(std::move(data)), next(nullptr) {}
+        };
+
+        Node* head;
+        Node* tail;
+        size_t size;
+
+    public:
+        LinkedList() : head(nullptr), tail(nullptr), size(0) {}
+
+        ~LinkedList() {
+        }
+
+        void push_back(T&& value) { // Accept rvalue reference
+            Node* newNode = new Node(std::move(value));
+            if (!head) {
+                head = tail = newNode;
+            } else {
+                tail->next = newNode;
+                tail = newNode;
+            }
+            ++size;
+        }
+
+        size_t getSize() const {
+            return size;
+        }
     };
 
-    Node* head;
-    Node* tail;
-    size_t size;
+    class Stack {
+    private:
+        struct Node {
+            std::unique_ptr<std::vector<uint32_t>> block;
+            Node* next;
 
-public:
-    LinkedList() : head(nullptr), tail(nullptr), size(0) {}
+            explicit Node(std::unique_ptr<std::vector<uint32_t>>&& blk) : block(std::move(blk)), next(nullptr) {}
+        };
 
-    ~LinkedList() {
-        while (head) {
-            Node* temp = head;
-            head = head->next;
+        Node* top;
+        size_t size;
+
+    public:
+        Stack() : top(nullptr), size(0) {}
+
+        ~Stack() {
+        }
+
+        void push(std::unique_ptr<std::vector<uint32_t>>&& block) {
+            Node* newNode = new Node(std::move(block));
+            newNode->next = top;
+            top = newNode;
+            ++size;
+        }
+
+        std::unique_ptr<std::vector<uint32_t>> pop() {
+            if (!top) return nullptr;
+            Node* temp = top;
+            auto block = std::move(top->block);
+            top = top->next;
             delete temp;
+            --size;
+            return block;
         }
-    }
 
-    void push_back(T&& value) { // Accept rvalue reference
-        Node* newNode = new Node(std::move(value));
-        if (!head) {
-            head = tail = newNode;
-        } else {
-            tail->next = newNode;
-            tail = newNode;
+        size_t getSize() const {
+            return size;
         }
-        ++size;
-    }
+    };
 
-    void clear() {
-        while (head) {
-            Node* temp = head;
-            head = head->next;
+    class Queue {
+    private:
+        struct Node {
+            std::unique_ptr<std::vector<uint32_t>> block;
+            Node* next;
+
+            explicit Node(std::unique_ptr<std::vector<uint32_t>>&& blk) : block(std::move(blk)), next(nullptr) {}
+        };
+
+        Node *front, *rear;
+        size_t size;
+
+    public:
+        Queue() : front(nullptr), rear(nullptr), size(0) {}
+
+        ~Queue() {
+        }
+
+        void enqueue(std::unique_ptr<std::vector<uint32_t>>&& block) {
+            Node* newNode = new Node(std::move(block));
+            if (!rear) {
+                front = rear = newNode;
+            } else {
+                rear->next = newNode;
+                rear = newNode;
+            }
+            ++size;
+        }
+
+        std::unique_ptr<std::vector<uint32_t>> dequeue() {
+            if (!front) return nullptr;
+            Node* temp = front;
+            auto block = std::move(front->block);
+            front = front->next;
+            if (!front) rear = nullptr;
             delete temp;
+            --size;
+            return block;
         }
-        head = tail = nullptr;
-        size = 0;
-    }
 
-    size_t getSize() const {
-        return size;
-    }
-};
-
-
+        size_t getSize() const {
+            return size;
+        }
+    };
 
 class SystemStressTest {
 private:
-    static constexpr int BAR_WIDTH = 30;     // Progress bar width for time and memory displays
-    static constexpr int MULTIPLIER = 8;     // Memory multiplier for stress test
-    static constexpr int TEST_DURATION = 30; // seconds
+    static constexpr int BAR_WIDTH = 30;                        // Progress bar width for time and memory displays
+    static constexpr int MULTIPLIER = 8;                        // Memory multiplier for stress test
+    static constexpr int TEST_DURATION = 30;                    // seconds
+    static constexpr size_t SMALL_BLOCK_SIZE = 256 * 1024;      // 256 KB blocks
+    static constexpr size_t LARGE_BLOCK_SIZE = 1024 * 1024;     // 1 MB blocks
     static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; //? 1 GB Scaling bytes -> Mega -> Giga
 
     // Shared atomic variables to track system metrics
-    std::atomic<bool> running{true};        // Flag to indicate if the test is running
-    std::atomic<uint64_t> totalIntOps{0};   // Total integer operations
-    std::atomic<uint64_t> totalFloatOps{0}; // Total floating-point operations
-    std::atomic<size_t> memoryAllocated{0}; // Memory allocated in bytes
+    std::atomic<bool> running{true};             // Flag to indicate if the test is running
+    std::atomic<size_t> memoryAllocated{0};     // Memory allocated in bytes
+    std::atomic<uint64_t> hashOps{0};   // Total Hashing operations
 
     std::mutex consoleMutex; // Protects console output from race conditions
 
@@ -180,52 +248,63 @@ private:
 
         // Display integer and floating-point operation statistics
         std::cout << "HASH OPS: "
-                  << totalIntOps.load(std::memory_order_relaxed)
+                  << hashOps.load(std::memory_order_relaxed)
                   << " ops" << std::flush;
 
     }
 
     //> CPU Stress test implementation with an extremely compute-intensive hash "SHA-256" simulation
     void cpuHashStressTest(int threadId) {
-        volatile uint64_t hashOps = 0; // Local counter for hashing operations
-        constexpr int BATCH_SIZE = 128; // Lower batch size for more computation per op
+        constexpr int BATCH_SIZE = 1024 * 1024; // Large batch size for high compute intensity
+        constexpr int CHUNK_SIZE = 1024;       // Smaller chunk size for frequent updates
 
-        // Compute-intensive hash function using modular exponentiation
+        // Highly compute-intensive hash function using nested modular exponentiation
         auto computeIntensiveHash = [](uint64_t base, uint64_t exponent, uint64_t mod) -> uint64_t {
             uint64_t result = 1;
+            uint64_t nestedFactor = 1;
             for (uint64_t i = 0; i < exponent; ++i) {
                 result = (result * base) % mod;
+                nestedFactor = (nestedFactor * result) % mod; // Nested computation to amplify cost
+                if (i % 10 == 0) { // Periodic additional computation
+                    result = (result + nestedFactor) % mod;
+                }
             }
             return result;
         };
+
+        uint64_t localHashOps = 0; // Local counter for hashing operations
 
         while (running) {
             volatile uint64_t hashValue = 0; // Intermediate computation result
 
             // Perform a batch of hashing operations
             for (int i = 0; i < BATCH_SIZE && running; ++i) {
-                uint64_t randomBase = threadId * 12345 + i;  // Simulated random data
-                uint64_t randomExponent = (i % 1000) + 500;  // Arbitrary exponent
-                uint64_t randomModulus = 1e9 + 7;            // Large prime modulus
+                uint64_t randomBase = threadId * 123456789 + i * 987654321;  // Simulated complex random data
+                uint64_t randomExponent = ((i % 2000) + 500) * (threadId % 10 + 1); // Larger arbitrary exponent
+                uint64_t randomModulus = 1e9 + 12347;  // Larger prime modulus for increased complexity
 
-                // Compute-intensive hashing
+                // Compute-intensive hashing with additional complexity
                 hashValue = computeIntensiveHash(randomBase, randomExponent, randomModulus);
 
-                // Simulate work on the hashValue to avoid compiler optimizations
+                // Simulate additional work on the hashValue to avoid compiler optimizations
                 if (hashValue % 1024 == 0) {
-                    hashValue += threadId;
+                    hashValue = (hashValue + threadId) * (randomBase % 7);
                 }
 
-                hashOps += 1; // Increment hash operation count
+                ++localHashOps; // Increment local hash operation count
+
+                // Update the shared counter after each chunk
+                if (localHashOps % CHUNK_SIZE == 0) {
+                    hashOps.fetch_add(CHUNK_SIZE, std::memory_order_relaxed);
+                    localHashOps = 0;
+                }
             }
 
-            // Update shared atomic counters after each batch
-            totalIntOps.fetch_add(hashOps, std::memory_order_relaxed);
-
-            // Reset local counter
-            hashOps = 0;
-
-            // No sleep to maximize CPU stress
+            // Update any remaining operations in the local counter
+            if (localHashOps > 0) {
+                hashOps.fetch_add(localHashOps, std::memory_order_relaxed);
+                localHashOps = 0;
+            }
         }
     }
 
@@ -326,6 +405,10 @@ public:
               << ConsoleColors::RESET << std::endl;
 
     std::cout << ConsoleColors::CYAN
+            << "Total hashing operations: " << hashOps.load(std::memory_order_relaxed) 
+            << " ops" << ConsoleColors::RESET << std::endl;
+
+    std::cout << ConsoleColors::CYAN
               << "Total execution time: " << duration.count() / 1000.0
               << " seconds" << ConsoleColors::RESET << std::endl;
 
@@ -336,10 +419,6 @@ public:
     std::cout << ConsoleColors::CYAN
               << "CPU cores utilized: " << numCores
               << ConsoleColors::RESET << std::endl;
-
-    std::cout << ConsoleColors::CYAN
-            << "Total hashing operations: " << totalIntOps.load(std::memory_order_relaxed) 
-            << " ops" << ConsoleColors::RESET << std::endl;
 
   }
 
