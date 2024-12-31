@@ -1,5 +1,4 @@
 #include <mutex>        //! Provides std::mutex for thread synchronization, ensuring safe access to shared resources.
-#include <cmath>        //? Used for mathematical functions like sin, cos, and M_PI in the CPU stress test.
 #include <vector>       //? Provides std::vector, used for dynamically allocated memory blocks.
 #include <thread>       //! Enables multithreading with std::thread.
 #include <chrono>       //! Provides utilities for handling time, including measuring elapsed time and thread sleeping.
@@ -52,126 +51,46 @@ namespace ConsoleColors {
     const char* const MAGENTA = "\033[35m";
 }
 
-template<typename T>
+    // Template class for a LinkedList
+    template <typename T>
     class LinkedList {
     private:
-        struct Node {
-            T data;
-            Node* next;
+    // Internal structure representing a node in the LinkedList
+    struct Node {
+        T data;       // Data stored in the node
+        Node *next;   // Pointer to the next node
 
-        explicit Node(T&& data) : data(std::move(data)), next(nullptr) {}
-        };
-
-        Node* head;
-        Node* tail;
-        size_t size;
-
-    public:
-        LinkedList() : head(nullptr), tail(nullptr), size(0) {}
-
-        ~LinkedList() {
-        }
-
-        void push_back(T&& value) { // Accept rvalue reference
-            Node* newNode = new Node(std::move(value));
-            if (!head) {
-                head = tail = newNode;
-            } else {
-                tail->next = newNode;
-                tail = newNode;
-            }
-            ++size;
-        }
-
-        size_t getSize() const {
-            return size;
-        }
+        // Constructor to initialize a node with given data (move semantics used for efficiency)
+        explicit Node(T &&data) : data(std::move(data)), next(nullptr) {}
     };
 
-    class Stack {
-    private:
-        struct Node {
-            std::unique_ptr<std::vector<uint32_t>> block;
-            Node* next;
-
-            explicit Node(std::unique_ptr<std::vector<uint32_t>>&& blk) : block(std::move(blk)), next(nullptr) {}
-        };
-
-        Node* top;
-        size_t size;
+    Node *head;     // Pointer to the first node in the LinkedList
+    Node *tail;     // Pointer to the last node in the LinkedList
+    size_t size;    // Tracks the number of nodes in the LinkedList
 
     public:
-        Stack() : top(nullptr), size(0) {}
+    // Constructor: Initializes an empty LinkedList
+    LinkedList() : head(nullptr), tail(nullptr), size(0) {}
 
-        ~Stack() {
-        }
+    // Destructor: Clean up resources (not implemented here, relying on T to manage its own memory)
+    ~LinkedList() {}
 
-        void push(std::unique_ptr<std::vector<uint32_t>>&& block) {
-            Node* newNode = new Node(std::move(block));
-            newNode->next = top;
-            top = newNode;
-            ++size;
+    // Adds a new element to the end of the LinkedList using move semantics
+    void push_back(T &&value) {
+        Node *newNode = new Node(std::move(value)); // Create a new node with the given value
+        if (!head) { // If the list is empty, initialize both head and tail to the new node
+        head = tail = newNode;
+        } else { // Otherwise, append the new node to the end of the list
+        tail->next = newNode;
+        tail = newNode;
         }
+        ++size; // Increment the size of the list
+    }
 
-        std::unique_ptr<std::vector<uint32_t>> pop() {
-            if (!top) return nullptr;
-            Node* temp = top;
-            auto block = std::move(top->block);
-            top = top->next;
-            delete temp;
-            --size;
-            return block;
-        }
-
-        size_t getSize() const {
-            return size;
-        }
+    // Returns the current size of the LinkedList
+    size_t getSize() const { return size; }
     };
 
-    class Queue {
-    private:
-        struct Node {
-            std::unique_ptr<std::vector<uint32_t>> block;
-            Node* next;
-
-            explicit Node(std::unique_ptr<std::vector<uint32_t>>&& blk) : block(std::move(blk)), next(nullptr) {}
-        };
-
-        Node *front, *rear;
-        size_t size;
-
-    public:
-        Queue() : front(nullptr), rear(nullptr), size(0) {}
-
-        ~Queue() {
-        }
-
-        void enqueue(std::unique_ptr<std::vector<uint32_t>>&& block) {
-            Node* newNode = new Node(std::move(block));
-            if (!rear) {
-                front = rear = newNode;
-            } else {
-                rear->next = newNode;
-                rear = newNode;
-            }
-            ++size;
-        }
-
-        std::unique_ptr<std::vector<uint32_t>> dequeue() {
-            if (!front) return nullptr;
-            Node* temp = front;
-            auto block = std::move(front->block);
-            front = front->next;
-            if (!front) rear = nullptr;
-            delete temp;
-            --size;
-            return block;
-        }
-
-        size_t getSize() const {
-            return size;
-        }
-    };
 
 class SystemStressTest {
 private:
@@ -185,7 +104,7 @@ private:
     // Shared atomic variables to track system metrics
     std::atomic<bool> running{true};             // Flag to indicate if the test is running
     std::atomic<size_t> memoryAllocated{0};     // Memory allocated in bytes
-    std::atomic<uint64_t> hashOps{0};   // Total Hashing operations
+    std::atomic<uint64_t> hashOps{0};          // Total Hashing operations
 
     std::mutex consoleMutex; // Protects console output from race conditions
 
@@ -308,32 +227,43 @@ private:
         }
     }
 
-    // Memory Stress test
+    // Function to stress test memory allocation
     void memoryStressTest() {
+        // Linked list to store memory blocks (using unique_ptr for automatic memory management)
         LinkedList<std::unique_ptr<std::vector<int>>> memoryBlocks;
 
         try {
+            // Loop to allocate memory until the target threshold is reached or the test is stopped
             while (running && memoryAllocated < MULTIPLIER * TARGET_MEMORY) {
-                static constexpr size_t blockSize = 1024 * 1024;
+                static constexpr size_t blockSize = 1024 * 1024; // Block size of 1 MB
 
+                // Allocate a block of memory, filled with dummy data
                 auto block = std::make_unique<std::vector<int>>(
-                    blockSize / sizeof(int), 1 // Fill block with dummy data
+                    blockSize / sizeof(int), 1 // Each block is filled with the value 1
                 );
 
+                // Update the total allocated memory counter
                 memoryAllocated += blockSize;
-                memoryBlocks.push_back(std::move(block)); // Transfer ownership
+
+                // Store the allocated block in the linked list to maintain ownership and prevent deallocation
+                memoryBlocks.push_back(std::move(block));
             }
-        } catch (const std::bad_alloc& e) {
-            std::lock_guard<std::mutex> lock(consoleMutex);
-            std::cout << "\n" << ConsoleColors::RED
+        } catch (const std::bad_alloc &e) {
+            // Handle memory allocation failure
+            std::lock_guard<std::mutex> lock(consoleMutex); // Ensure thread-safe console output
+            std::cout << "\n"
+                    << ConsoleColors::RED
                     << "Memory allocation failed: " << e.what()
                     << ConsoleColors::RESET << std::endl;
         }
 
+        // Keep the function alive as long as the `running` flag is true
         while (running) {
+            // Sleep for a short duration to prevent busy-waiting
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
+
 
 public:
   void run() {
