@@ -34,22 +34,23 @@ namespace ConsoleInitializer {
 }
 
 /*
-? ANSI color definitions moved to a dedicated namespace for better organization
-! The declaration
-> const char* const
-? specifies a constant pointer to a constant character string.
-! SECURITY REASONS THAT ARE UNNEGOTIABLE
-*/
+ * ANSI color definitions are encapsulated in a dedicated namespace
+ * for improved organization and reusability across the codebase.
+
+ * Each color is defined as a `constexpr const char*`, ensuring
+ * compile-time evaluation and immutability for safety and performance.
+ */
 
 namespace ConsoleColors {
-    const char* const RED = "\033[31m";
-    const char* const BLUE = "\033[34m";
-    const char* const CYAN = "\033[36m";
-    const char* const RESET = "\033[0m";
-    const char* const GREEN = "\033[32m";
-    const char* const YELLOW = "\033[33m";
-    const char* const MAGENTA = "\033[35m";
+    constexpr const char* RED = "\033[31m";       // ANSI escape code for red text
+    constexpr const char* BLUE = "\033[34m";      // ANSI escape code for blue text
+    constexpr const char* CYAN = "\033[36m";      // ANSI escape code for cyan text
+    constexpr const char* RESET = "\033[0m";      // Resets all text formatting to default
+    constexpr const char* GREEN = "\033[32m";     // ANSI escape code for green text
+    constexpr const char* YELLOW = "\033[33m";    // ANSI escape code for yellow text
+    constexpr const char* MAGENTA = "\033[35m";   // ANSI escape code for magenta text
 }
+
 
     // Template class for a LinkedList
     template <typename T>
@@ -116,22 +117,29 @@ private:
     }
 
     void displayMemoryStatus() const {
+        // [O(1)] Calculate adjusted target memory based on the multiplier.
         float adjustedTargetMemory = TARGET_MEMORY * MULTIPLIER;
+
+        // [O(1)] Calculate memory usage progress as a percentage (0.0 to 1.0).
         float progress = static_cast<float>(memoryAllocated) / adjustedTargetMemory;
+
+        // [O(1)] Calculate the number of filled positions in the progress bar.
         int pos = static_cast<int>(BAR_WIDTH * progress);
 
-        // Build progress bar for memory usage
+        // [O(BAR_WIDTH)] Build the memory usage progress bar.
         std::string progressBar = "Memory: [";
-        for (int i = 0; i < BAR_WIDTH; ++i) {
-            progressBar += (i < pos) ?
+        for (int i = 0; i < BAR_WIDTH; ++i) { // Iterate over BAR_WIDTH positions
+            progressBar += (i < pos) ? // Add filled or empty bar segments
                 std::string(ConsoleColors::GREEN) + "■" + ConsoleColors::RESET :
                 "□";
         }
 
-        // Display the progress bar and memory usage
+        // [O(1)] Clear the current console line to prepare for new output.
         clearLine();
+
+        // [O(1)] Display the memory progress bar and memory usage details.
         std::cout << progressBar << "] "
-                  << memoryAllocated / (1024 * 1024) << "MB / "
+                  << memoryAllocated / (1024 * 1024) << "MB / " // Convert bytes to MB
                   << adjustedTargetMemory / (1024 * 1024) << "MB" << std::flush;
     }
 
@@ -172,84 +180,146 @@ private:
 
 
     void updateDisplay(int elapsedSeconds) {
+        // [O(1)] Lock the console to prevent concurrent access by multiple threads.
         std::lock_guard<std::mutex> lock(consoleMutex); // Prevent concurrent console access
 
+        // [O(1)] Clear the current console line to prepare for updated output.
         clearLine();
+
+        // [O(1)] Display the elapsed time in seconds as part of the progress.
         displayTimeProgress(elapsedSeconds);
+
+        // [O(1)] Output a newline to separate sections.
         std::cout << std::endl;
+
+        // [O(1)] Display current memory usage status.
         displayMemoryStatus();
+
+        // [O(1)] Output a newline for separation.
         std::cout << std::endl;
 
-        // Display integer and floating-point operation statistics
+        // [O(1)] Display the total number of hash operations performed.
+        // `hashOps.load()` is a single atomic operation, which is O(1).
         std::cout << "HASH OPS: "
-                  << hashOps.load(std::memory_order_relaxed)
+                  << hashOps.load(std::memory_order_relaxed) // Fetch current hash operations count atomically
                   << " ops" << std::flush;
-
     }
 
+
+
+    // ============================================================================================
+    // CPU STRESS TEST FUNCTION
+    // ============================================================================================
+    // VISUAL REPRESENTATION OF THE OPERATION SEQUENCE:
+    // +--------------------------+
+    // | Define Compute-Intensive |
+    // | Hash Function (Helper)   |
+    // +--------------------------+
+    //            |
+    //            v
+    // +---------------------------+
+    // | While `running` is true:  |
+    // +---------------------------+
+    //            |
+    //            v
+    // +---------------------------------------+
+    // | Process BATCH_SIZE Hash Operations:   |
+    // | - Generate pseudo-random inputs       |
+    // | - Compute hash value                  |
+    // | - Increment operation counters        |
+    // | - Update shared counter periodically  |
+    // +---------------------------------------+
+    //            |
+    //            v
+    // +---------------------------+
+    // | If not running: Exit loop |
+    // +---------------------------+
+    //            |
+    //            v
+    // +----------------------------------------+
+    // | Update any remaining local operations  |
+    // | to shared counter before exiting       |
+    // +----------------------------------------+
+    //            |
+    //            v
+    // +------------------+
+    // | End: Function    |
+    // +------------------+
+    //
+    // ============================================================================================
+
+
     // Function to simulate a compute-intensive CPU stress test using a custom hash-like operation.
-    // This function is designed to run on a specific thread and perform a large number of operations
-    // involving modular exponentiation and nested computation to simulate high CPU load.
+    // [O(1)] This function is designed to run on a specific thread and perform a large number of operations
+    // [O(1)] involving modular exponentiation and nested computation to simulate high CPU load.
 
     void cpuHashStressTest(int threadId) {
-        constexpr int BATCH_SIZE = 1024 * 1024; // Total number of hash operations in a batch.
-        constexpr int CHUNK_SIZE = 1024;       // Number of operations after which shared counter is updated.
+        constexpr int BATCH_SIZE = 1024 * 1024; // [O(1)] Total number of hash operations in a batch.
+        constexpr int CHUNK_SIZE = 1024;       // [O(1)] Number of operations after which shared counter is updated.
 
+
+        //! 1. MODULAR EXPONENTIATION: CORE OF PUBLIC-KEY CRYPTOGRAPHY
         // Define a compute-intensive hash-like function that uses nested modular exponentiation.
+        // [O(exponent)] Time complexity depends on the value of 'exponent' due to the nested loop.
         auto computeIntensiveHash = [](uint64_t base, uint64_t exponent, uint64_t mod) -> uint64_t {
-            uint64_t result = 1;      // Result of modular exponentiation
-            uint64_t nestedFactor = 1; // Additional factor to amplify computation complexity
+            uint64_t result = 1;      // [O(1)] Result of modular exponentiation
+            uint64_t nestedFactor = 1; // [O(1)] Additional factor to amplify computation complexity
 
             // Perform modular exponentiation with nested computation for additional complexity.
-            for (uint64_t i = 0; i < exponent; ++i) {
-                result = (result * base) % mod;                 // Base modular exponentiation
-                nestedFactor = (nestedFactor * result) % mod;   // Nested computation step
+            for (uint64_t i = 0; i < exponent; ++i) { // [O(exponent)] Outer loop runs 'exponent' times
+                result = (result * base) % mod;                 // [O(1)] Base modular exponentiation
+                nestedFactor = (nestedFactor * result) % mod;   // [O(1)] Nested computation step
 
+                //! 2. NON-LINEAR COMPUTATION TO INCREASE COMPLEXITY
                 // Periodic computation to simulate non-linear computational cost.
-                if (i % 10 == 0) {
-                    result = (result + nestedFactor) % mod;     // Add nested result periodically
+                if (i % 10 == 0) { // [O(1)] Condition check occurs on every iteration
+                    result = (result + nestedFactor) % mod;     // [O(1)] Add nested result periodically
                 }
             }
-            return result; // Return the final computed value
+            return result; // [O(1)] Return the final computed value
         };
 
-        uint64_t localHashOps = 0; // Local count of hash operations performed by this thread.
+        uint64_t localHashOps = 0; // [O(1)] Local count of hash operations performed by this thread.
 
+        // 3. PSEUDO-RANDOM INPUT
         // Main loop for stress testing
-        while (running) {
-            volatile uint64_t hashValue = 0; // Temporary variable to store intermediate hash results.
+        while (running) { // [O(∞)] Runs indefinitely unless 'running' is set to false externally
+            volatile uint64_t hashValue = 0; // [O(1)] Temporary variable to store intermediate hash results.
 
             // Perform a batch of hash operations.
-            for (int i = 0; i < BATCH_SIZE && running; ++i) {
+            for (int i = 0; i < BATCH_SIZE && running; ++i) { // [O(BATCH_SIZE)] Outer loop runs BATCH_SIZE times
                 // Generate pseudo-random input values for hashing.
-                uint64_t randomBase = threadId * 123456789 + i * 987654321;  
-                uint64_t randomExponent = ((i % 2000) + 500) * (threadId % 10 + 1); 
-                uint64_t randomModulus = 1e9 + 12347; 
+                uint64_t randomBase = threadId * 123456789 + i * 987654321;  // [O(1)]
+                uint64_t randomExponent = ((i % 2000) + 500) * (threadId % 10 + 1); // [O(1)]
+                uint64_t randomModulus = 1e9 + 12347; // [O(1)]
 
+
+                // 4. NESTED COMPUTATION AND HASHING
                 // Compute the hash-like value with the custom function.
-                hashValue = computeIntensiveHash(randomBase, randomExponent, randomModulus);
+                hashValue = computeIntensiveHash(randomBase, randomExponent, randomModulus); // [O(randomExponent)]
 
                 // Additional operation to avoid compiler optimizations on hashValue.
-                if (hashValue % 1024 == 0) {
-                    hashValue = (hashValue + threadId) * (randomBase % 7);
+                if (hashValue % 1024 == 0) { // [O(1)] Condition check and operation
+                    hashValue = (hashValue + threadId) * (randomBase % 7); // [O(1)]
                 }
 
-                ++localHashOps; // Increment local hash operation counter.
+                ++localHashOps; // [O(1)] Increment local hash operation counter.
 
                 // Update shared counter periodically to reduce contention.
-                if (localHashOps % CHUNK_SIZE == 0) {
-                    hashOps.fetch_add(CHUNK_SIZE, std::memory_order_relaxed);
-                    localHashOps = 0; // Reset local counter.
+                if (localHashOps % CHUNK_SIZE == 0) { // [O(1)] Condition check every CHUNK_SIZE iterations
+                    hashOps.fetch_add(CHUNK_SIZE, std::memory_order_relaxed); // [O(1)] Atomic counter update
+                    localHashOps = 0; // [O(1)] Reset local counter.
                 }
             }
 
             // Add any remaining operations in the local counter to the shared counter.
-            if (localHashOps > 0) {
-                hashOps.fetch_add(localHashOps, std::memory_order_relaxed);
-                localHashOps = 0;
+            if (localHashOps > 0) { // [O(1)] Condition check at the end of the batch
+                hashOps.fetch_add(localHashOps, std::memory_order_relaxed); // [O(1)] Atomic counter update
+                localHashOps = 0; // [O(1)] Reset local counter.
             }
         }
     }
+
 
 /*
 
@@ -303,96 +373,129 @@ makes something like this:
         // Keep the function alive as long as the `running` flag is true
         while (running) {
             // Sleep for a short duration to prevent busy-waiting
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
 
 public:
-  void run() {
-    ConsoleInitializer::initialize(); // Platform-specific console initialization
+    void run() {
+        // Initialize the console (platform-specific setup, e.g., enable colored output on Windows)
+        ConsoleInitializer::initialize(); 
 
-    std::cout << ConsoleColors::MAGENTA
-              << "\n=== System Stress Test Starting ==="
-              << ConsoleColors::RESET << std::endl;
+        // Display the start banner for the stress test
+        std::cout << ConsoleColors::MAGENTA
+                << "\n=== System Stress Test Starting ==="
+                << ConsoleColors::RESET << std::endl;
 
-    std::cout << ConsoleColors::YELLOW
-              << "Warning: This program will stress your system for "
-              << TEST_DURATION << " seconds."
-              << ConsoleColors::RESET << std::endl;
+        // Display a warning message about the test duration
+        std::cout << ConsoleColors::YELLOW
+                << "Warning: This program will stress your system for "
+                << TEST_DURATION << " seconds."
+                << ConsoleColors::RESET << std::endl;
 
-    std::cout << "Press Enter to continue...";
-    std::cin.get();
+        // Prompt the user to continue
+        std::cout << "Press Enter to continue...";
+        std::cin.get(); // Wait for user input
 
-    const auto numCores = std::thread::hardware_concurrency(); // Detect CPU cores
-    assert(numCores > 0 && "Failed to detect CPU cores");
+        // Detect the number of CPU cores available on the system
+        const auto numCores = std::thread::hardware_concurrency();
+        assert(numCores > 0 && "Failed to detect CPU cores"); // Ensure the number of cores is valid
 
-    std::cout << ConsoleColors::BLUE << "\nDetected "
-              << numCores << " CPU cores"
-              << ConsoleColors::RESET << std::endl;
+        // Display the number of detected CPU cores
+        std::cout << ConsoleColors::BLUE << "\nDetected "
+                << numCores << " CPU cores"
+                << ConsoleColors::RESET << std::endl;
 
-    std::cout << "\nStarting stress test...\n\n" << std::flush;
+        // Inform the user that the stress test is starting
+        std::cout << "\nStarting stress test...\n\n" << std::flush;
 
-    auto startTime = std::chrono::steady_clock::now();
+        // Record the starting time of the test
+        auto startTime = std::chrono::steady_clock::now();
 
-    // Launch CPU stress threads
-    std::vector<std::thread> cpuThreads;
-    for (unsigned int i = 0; i < numCores; ++i) {
-        cpuThreads.emplace_back(&SystemStressTest::cpuHashStressTest, this, i); // Launch hashing threads
-    }
-
-    // Launch memory stress thread
-    std::thread memThread(&SystemStressTest::memoryStressTest, this);
-
-    // Main monitoring loop
-    int elapsedSeconds = 0;
-    while (elapsedSeconds <= TEST_DURATION) {
-        auto elapsedTime = std::chrono::steady_clock::now() - startTime;
-        elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count();
-
-        updateDisplay(elapsedSeconds);
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
-        moveCursor(2, true); // Move cursor up to overwrite previous output
-    }
-
-    running = false; // Signal threads to stop
-
-    // Wait for all threads to finish
-    for (auto& thread : cpuThreads) {
-        if (thread.joinable()) {
-            thread.join();
+        // ===================================================================
+        // CPU STRESS TEST SETUP
+        // ===================================================================
+        // Launch a thread for each CPU core to perform the CPU stress test
+        std::vector<std::thread> cpuThreads;
+        for (unsigned int i = 0; i < numCores; ++i) {
+            cpuThreads.emplace_back(&SystemStressTest::cpuHashStressTest, this, i); // Launch CPU hashing threads
         }
+
+        // Launch a separate thread for memory stress testing
+        std::thread memThread(&SystemStressTest::memoryStressTest, this);
+
+        // ===================================================================
+        // MONITORING LOOP
+        // ===================================================================
+        int elapsedSeconds = 0;
+        while (elapsedSeconds <= TEST_DURATION) { // Run the loop until the test duration is reached
+            // Calculate the elapsed time since the start
+            auto elapsedTime = std::chrono::steady_clock::now() - startTime;
+            elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count();
+
+            // Update the console display with the current progress
+            updateDisplay(elapsedSeconds);
+
+            // Sleep briefly to reduce the frequency of updates
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
+            // Move the cursor up to overwrite the previous output in the console
+            moveCursor(2, true);
+        }
+
+        // Signal all threads to stop their work
+        running = false;
+
+        // ===================================================================
+        // THREAD CLEANUP
+        // ===================================================================
+        // Wait for all CPU threads to complete
+        for (auto& thread : cpuThreads) {
+            if (thread.joinable()) { // Ensure the thread is joinable before joining
+                thread.join();
+            }
+        }
+
+        // Wait for the memory stress test thread to complete
+        if (memThread.joinable()) {
+            memThread.join();
+        }
+
+        // ===================================================================
+        // DISPLAY TEST RESULTS
+        // ===================================================================
+        // Calculate the total duration of the test
+        auto endTime = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+        // Print an empty line for spacing
+        std::cout << std::endl;
+
+        // Display the test results banner
+        std::cout << "\n\n" << ConsoleColors::MAGENTA
+                << "=== Test Results ==="
+                << ConsoleColors::RESET << std::endl;
+
+        // Display the total number of hashing operations performed
+        std::cout << ConsoleColors::CYAN
+                << "Total hashing operations: " << hashOps.load(std::memory_order_relaxed) 
+                << " ops" << ConsoleColors::RESET << std::endl;
+
+        // Display the total execution time in seconds
+        std::cout << ConsoleColors::CYAN
+                << "Total execution time: " << duration.count() / 1000.0
+                << " seconds" << ConsoleColors::RESET << std::endl;
+
+        // Display the maximum amount of memory allocated during the test
+        std::cout << ConsoleColors::CYAN
+                << "Maximum memory allocated: " << memoryAllocated / (1024 * 1024)
+                << "MB" << ConsoleColors::RESET << std::endl;
+
+        // Display the number of CPU cores utilized
+        std::cout << ConsoleColors::CYAN
+                << "CPU cores utilized: " << numCores
+                << ConsoleColors::RESET << std::endl;
     }
-    if (memThread.joinable()) {
-        memThread.join();
-    }
-
-    // Display test results
-    auto endTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-
-    std::cout << std::endl;
-
-    std::cout << "\n\n" << ConsoleColors::MAGENTA
-              << "=== Test Results ==="
-              << ConsoleColors::RESET << std::endl;
-
-    std::cout << ConsoleColors::CYAN
-            << "Total hashing operations: " << hashOps.load(std::memory_order_relaxed) 
-            << " ops" << ConsoleColors::RESET << std::endl;
-
-    std::cout << ConsoleColors::CYAN
-              << "Total execution time: " << duration.count() / 1000.0
-              << " seconds" << ConsoleColors::RESET << std::endl;
-
-    std::cout << ConsoleColors::CYAN
-              << "Maximum memory allocated: " << memoryAllocated / (1024 * 1024)
-              << "MB" << ConsoleColors::RESET << std::endl;
-
-    std::cout << ConsoleColors::CYAN
-              << "CPU cores utilized: " << numCores
-              << ConsoleColors::RESET << std::endl;
-
-  }
 
 };
 
