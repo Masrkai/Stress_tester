@@ -12,25 +12,25 @@
  * Encapsulates all Windows-specific code in a dedicated namespace
  */
 namespace ConsoleInitializer {
-#ifdef _WIN32
-    #include <io.h>         //> Windows-specific library for low-level I/O operations (used in console initialization).
-    #include <fcntl.h>      //> Windows-specific library for file control operations (used in console initialization).
-    #include <windows.h>    //> Windows-specific library for system calls like SetConsoleOutputCP and SetConsoleMode.
+    #ifdef _WIN32
+        #include <io.h>         //> Windows-specific library for low-level I/O operations (used in console initialization).
+        #include <fcntl.h>      //> Windows-specific library for file control operations (used in console initialization).
+        #include <windows.h>    //> Windows-specific library for system calls like SetConsoleOutputCP and SetConsoleMode.
 
-        void initialize() {
-            SetConsoleOutputCP(CP_UTF8);
-            _setmode(_fileno(stdout), _O_U16TEXT);
+            void initialize() {
+                SetConsoleOutputCP(CP_UTF8);
+                _setmode(_fileno(stdout), _O_U16TEXT);
 
-            auto consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-            DWORD consoleMode = 0;
-            assert(GetConsoleMode(consoleHandle, &consoleMode) && "Failed to get console mode");
+                auto consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+                DWORD consoleMode = 0;
+                assert(GetConsoleMode(consoleHandle, &consoleMode) && "Failed to get console mode");
 
-            consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-            assert(SetConsoleMode(consoleHandle, consoleMode) && "Failed to set console mode");
-        }
-#else
-    void initialize() {} //* No-op for non-Windows platforms
-#endif
+                consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+                assert(SetConsoleMode(consoleHandle, consoleMode) && "Failed to set console mode");
+            }
+    #else
+        void initialize() {} //* No-op for non-Windows platforms
+    #endif
 }
 
 /*
@@ -51,52 +51,62 @@ namespace ConsoleColors {
     constexpr const char* MAGENTA = "\033[35m";   // ANSI escape code for magenta text
 }
 
-
-    // Template class for a LinkedList
-    template <typename T>
+   template <typename T>
     class LinkedList {
     private:
-    // Internal structure representing a node in the LinkedList
-    struct Node {
-        T data;       // Data stored in the node
-        Node *next;   // Pointer to the next node
+        struct Node {
+            T data;
+            Node *next;
 
-        // Constructor to initialize a node with given data (move semantics used for efficiency)
-        explicit Node(T &&data) : data(std::move(data)), next(nullptr) {}
-    };
+            // Constructor to initialize a node with given data (move semantics used for efficiency)
+            explicit Node(T &&data) : data(std::move(data)), next(nullptr) {}
+        };
 
-    Node *head;     // Pointer to the first node in the LinkedList
-    Node *tail;     // Pointer to the last node in the LinkedList
-    size_t size;    // Tracks the number of nodes in the LinkedList
+        Node *head;     // Pointer to the first node in the LinkedList
+        Node *tail;     // Pointer to the last node in the LinkedList
+        size_t size;    // Tracks the number of nodes in the LinkedList
 
     public:
-    // Constructor: Initializes an empty LinkedList
-    LinkedList() : head(nullptr), tail(nullptr), size(0) {}
+        // Constructor: Initializes an empty LinkedList
+        LinkedList() : head(nullptr), tail(nullptr), size(0) {}
 
-    // Destructor: Clean up resources (not implemented here, relying on T to manage its own memory)
-    ~LinkedList() {}
-
-    // Adds a new element to the end of the LinkedList using move semantics
-    void push_back(T &&value) {
-        Node *newNode = new Node(std::move(value)); // Create a new node with the given value
-        if (!head) { // If the list is empty, initialize both head and tail to the new node
-        head = tail = newNode;
-        } else { // Otherwise, append the new node to the end of the list
-        tail->next = newNode;
-        tail = newNode;
+        // Destructor: Clean up resources (not implemented here, relying on T to manage its own memory)
+        ~LinkedList() {
+            clear();
         }
-        ++size; // Increment the size of the list
-    }
 
-    // Returns the current size of the LinkedList
-    size_t getSize() const { return size; }
+        // Adds a new element to the end of the LinkedList using move semantics
+        void push_back(T &&value) {
+            Node *newNode = new Node(std::move(value)); // Create a new node with the given value
+            if (!head) { // If the list is empty, initialize both head and tail to the new node
+                head = tail = newNode;
+            } else { // Otherwise, append the new node to the end of the list
+                tail->next = newNode;
+                tail = newNode;
+            }
+            ++size; // Increment the size of the list
+        }
+
+        // Returns the current size of the LinkedList
+        size_t getSize() const { return size; }
+
+        // Clears the LinkedList and deletes all nodes
+        void clear() {
+            while (head) {
+                Node *temp = head;
+                head = head->next;
+                delete temp;
+            }
+            tail = nullptr;
+            size = 0;
+        }
     };
 
 
 class SystemStressTest {
 private:
     static constexpr int BAR_WIDTH = 30;                        // Progress bar width for time and memory displays
-    static constexpr int MULTIPLIER = 8;                        // Memory multiplier for stress test
+    static constexpr int MULTIPLIER = 15;                        // Memory multiplier for stress test
     static constexpr int TEST_DURATION = 30;                    // seconds
     static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; //? 1 GB Scaling bytes -> Mega -> Giga
 
@@ -144,13 +154,13 @@ private:
     }
 
     void displayTimeProgress(int elapsedSeconds) const {
+        // Clamp elapsedSeconds to not exceed TEST_DURATION.
+        elapsedSeconds = std::min(elapsedSeconds, TEST_DURATION);
+
         // Calculate the progress as a fraction of the total test duration.
-        // Example: If elapsedSeconds = 10 and TEST_DURATION = 30,
-        //          progress = 0.3 (30% progress).
         float progress = static_cast<float>(elapsedSeconds) / TEST_DURATION;
 
         // Map the progress fraction to a position on the progress bar.
-        // Example: If BAR_WIDTH = 30 and progress = 0.3, pos = 15 (30% of 30).
         int pos = static_cast<int>(BAR_WIDTH * progress);
 
         // Initialize the progress bar string with a label "Time:   [".
@@ -160,7 +170,6 @@ private:
         for (int i = 0; i < BAR_WIDTH; ++i) {
             if (i < pos) {
                 // Add a filled segment (■) for positions less than `pos`.
-                // Use console color (CYAN) for enhanced visualization.
                 progressBar += std::string(ConsoleColors::CYAN) + "■" + ConsoleColors::RESET;
             } else {
                 // Add an empty segment (□) for positions greater than or equal to `pos`.
@@ -172,11 +181,11 @@ private:
         clearLine();
 
         // Output the progress bar, current elapsed time, and total test duration.
-        // Example output: "Time:   [■■■■□□□□□□] 10s / 30s"
         std::cout << progressBar << "] "
                 << elapsedSeconds << "s / "
                 << TEST_DURATION << "s" << std::flush;
     }
+
 
 
     void updateDisplay(int elapsedSeconds) {
@@ -254,24 +263,26 @@ private:
     // [O(1)] involving modular exponentiation and nested computation to simulate high CPU load.
 
     void cpuHashStressTest(int threadId) {
-        constexpr int BATCH_SIZE = 1024 * 1024; // [O(1)] Total number of hash operations in a batch.
-        constexpr int CHUNK_SIZE = 1024;       // [O(1)] Number of operations after which shared counter is updated.
+        constexpr int BATCH_SIZE = 1024; // [O(1)] Total number of hash operations in a batch.
+        constexpr int CHUNK_SIZE = 1;       // [O(1)] Number of operations after which shared counter is updated.
 
 
         //! 1. MODULAR EXPONENTIATION: CORE OF PUBLIC-KEY CRYPTOGRAPHY
         // Define a compute-intensive hash-like function that uses nested modular exponentiation.
         // [O(exponent)] Time complexity depends on the value of 'exponent' due to the nested loop.
-        auto computeIntensiveHash = [](uint64_t base, uint64_t exponent, uint64_t mod) -> uint64_t {
-            uint64_t result = 1;      // [O(1)] Result of modular exponentiation
+        auto computeIntensiveHash = [](  uint64_t  base,  uint64_t exponent,  uint64_t mod) -> uint64_t {
+            uint64_t result = 1;       // [O(1)] Result of modular exponentiation
             uint64_t nestedFactor = 1; // [O(1)] Additional factor to amplify computation complexity
 
-            // Perform modular exponentiation with nested computation for additional complexity.
             for (uint64_t i = 0; i < exponent; ++i) { // [O(exponent)] Outer loop runs 'exponent' times
                 result = (result * base) % mod;                 // [O(1)] Base modular exponentiation
                 nestedFactor = (nestedFactor * result) % mod;   // [O(1)] Nested computation step
 
-                //! 2. NON-LINEAR COMPUTATION TO INCREASE COMPLEXITY
-                // Periodic computation to simulate non-linear computational cost.
+                for (uint64_t j = 0; j < exponent; ++j) {       // [O(exponent)] Inner loop runs 'exponent' times
+                    nestedFactor += i + j;                      // Add nestedFactor with the current iteration values.
+                    result *= nestedFactor;                     // Multiply result by nestedFactor
+                }
+
                 if (i % 10 == 0) { // [O(1)] Condition check occurs on every iteration
                     result = (result + nestedFactor) % mod;     // [O(1)] Add nested result periodically
                 }
@@ -289,9 +300,9 @@ private:
             // Perform a batch of hash operations.
             for (int i = 0; i < BATCH_SIZE && running; ++i) { // [O(BATCH_SIZE)] Outer loop runs BATCH_SIZE times
                 // Generate pseudo-random input values for hashing.
-                uint64_t randomBase = threadId * 123456789 + i * 987654321;  // [O(1)]
-                uint64_t randomExponent = ((i % 2000) + 500) * (threadId % 10 + 1); // [O(1)]
-                uint64_t randomModulus = 1e9 + 12347; // [O(1)]
+                volatile uint64_t randomBase = threadId * 123456789 + i * 987654321;  // [O(1)]
+                volatile uint64_t randomExponent = ((i % 2000) + 500) * (threadId % 10 + 1); // [O(1)]
+                volatile uint64_t randomModulus = 1e9 + 12347; // [O(1)]
 
 
                 // 4. NESTED COMPUTATION AND HASHING
@@ -369,18 +380,12 @@ makes something like this:
                     << "Memory allocation failed: " << e.what()
                     << ConsoleColors::RESET << std::endl;
         }
-
-        // Keep the function alive as long as the `running` flag is true
-        while (running) {
-            // Sleep for a short duration to prevent busy-waiting
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
     }
 
 public:
     void run() {
         // Initialize the console (platform-specific setup, e.g., enable colored output on Windows)
-        ConsoleInitializer::initialize(); 
+        ConsoleInitializer::initialize();
 
         // Display the start banner for the stress test
         std::cout << ConsoleColors::MAGENTA
