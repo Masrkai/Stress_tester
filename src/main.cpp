@@ -105,7 +105,34 @@ private:
     std::atomic<size_t> memoryAllocated{0};     // Memory allocated in bytes
     std::atomic<uint64_t> hashOps{0};          // Total Hashing operations
 
-    std::mutex consoleMutex; // Protects console output from race conditions
+    std::mutex consoleMutex;
+    std::vector<std::thread> cpuThreads;
+    int numCores;
+
+    // Helper to get current system CPU load (simplified version)
+    float getCurrentSystemLoad() {
+        //! This is a placeholder implementation
+        //? In a real implementation, you would:
+        //> 1. Sample CPU usage over a short period
+        //> 2. Compare previous and current measurements
+        //> 3. Return a value between 0.0 and 1.0
+
+        // For now, return a value based on hash operations rate
+        static uint64_t lastOps = 0;
+        static auto lastCheck = std::chrono::steady_clock::now();
+        auto currentTime = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastCheck).count();
+
+        if (duration == 0) return 0.5f;
+        uint64_t currentOps = hashOps.load(std::memory_order_relaxed);
+        float opsRate = static_cast<float>(currentOps - lastOps) / duration;
+
+        lastOps = currentOps;
+        lastCheck = currentTime;
+
+        // Normalize the rate to a value between 0.0 and 1.0
+        return std::min(1.0f, std::max(0.0f, opsRate / 1000.0f));
+    }
 
     // Display helper methods
     void clearLine() const {
@@ -253,7 +280,7 @@ private:
     // [O(1)] involving modular exponentiation and nested computation to simulate high CPU load.
 
     void cpuHashStressTest(int threadId) {
-        constexpr int BATCH_SIZE = 1024; // [O(1)] Total number of hash operations in a batch.
+        constexpr int BATCH_SIZE = 4500; // [O(1)] Total number of hash operations in a batch.
         constexpr int CHUNK_SIZE = 1;       // [O(1)] Number of operations after which shared counter is updated.
 
 
@@ -369,6 +396,36 @@ makes something like this:
                     << ConsoleColors::RED
                     << "Memory allocation failed: " << e.what()
                     << ConsoleColors::RESET << std::endl;
+        }
+    }
+
+        void manageThreadPool() {
+        while (running) {
+            float systemLoad = getCurrentSystemLoad();
+
+            std::lock_guard<std::mutex> lock(consoleMutex);
+
+            if (systemLoad > 0.75f && cpuThreads.size() < static_cast<size_t>(numCores)) {
+                // Add a new thread if load is high
+                cpuThreads.emplace_back(&SystemStressTest::cpuHashStressTest, this, cpuThreads.size());
+                std::cout << ConsoleColors::YELLOW 
+                         << "\nAdding thread due to high load (" 
+                         << systemLoad << ")" 
+                         << ConsoleColors::RESET << std::flush;
+            } 
+            else if (systemLoad < 0.25f && cpuThreads.size() > 1) {
+                // Remove a thread if load is low, but keep at least one
+                if (cpuThreads.back().joinable()) {
+                    cpuThreads.back().join();
+                }
+                cpuThreads.pop_back();
+                std::cout << ConsoleColors::YELLOW 
+                         << "\nRemoving thread due to low load (" 
+                         << systemLoad << ")" 
+                         << ConsoleColors::RESET << std::flush;
+            }
+
+            std::this_thread::sleep_for(std::chrono::seconds(2));
         }
     }
 
