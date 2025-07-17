@@ -102,7 +102,7 @@ static constexpr int    BANDWIDTH_ITERATIONS = 5;               // Number of ite
 ```
 
 ## Project Structure
-
+the icons are present because I use [eza](https://github.com/eza-community/eza) project set it up if you want them too
 ```
 ├──  include
 │   ├──  ConsoleColors.h
