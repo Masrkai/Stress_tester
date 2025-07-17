@@ -13,6 +13,6 @@
 *.bashrc linguist-detectable=true
 
 # C++ Source Code
-*.h linguist-detectable=true
+*.h linguist-language=C
 *.cpp linguist-detectable=true
 *.hpp linguist-detectable=true
