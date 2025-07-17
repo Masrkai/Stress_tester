@@ -36,7 +36,7 @@ private:
     void displayTimeProgress(int elapsedSeconds) const;
 
     float getCurrentSystemLoad();
-    void updateDisplay(int elapsedSeconds);
+    void  updateDisplay(int elapsedSeconds);
 
     // Stress test methods
     void memoryStressTest();
