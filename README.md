@@ -119,8 +119,7 @@ static constexpr int    BANDWIDTH_ITERATIONS = 5;               // Number of ite
  ├──  CMakeLists.txt
  ├──  LICENSE
  ├── 󰂺 README.md
- ├──  shell.nix
- └──  structure.txt
+ └──  shell.nix
 ```
 
 ## Technical Details
