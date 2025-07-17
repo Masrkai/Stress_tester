@@ -190,29 +190,47 @@ void SystemStressTest::cpuHashStressTest(int threadId) {
     }
 }
 
-// Memory stress test function
+// Function to stress test memory allocation
 void SystemStressTest::memoryStressTest() {
+    // Linked list to store memory blocks (using unique_ptr for automatic memory management)
     LinkedList<std::unique_ptr<std::vector<int>>> memoryBlocks;
 
     try {
+        // Loop to allocate memory until the target threshold is reached or the test is stopped
         while (running && memoryAllocated < MULTIPLIER * TARGET_MEMORY) {
-            static constexpr size_t blockSize = 1024 * 1024; // 1 MB blocks
+            static constexpr size_t blockSize = 1024 * 1024; // Block size of 1 MB
 
+            // Create a unique pointer to a dynamically allocated vector of integers.
+            // The vector will simulate a block of memory for operations like memory testing or simulation.
             auto block = std::make_unique<std::vector<int>>(
-                blockSize / sizeof(int), 1
+                blockSize / sizeof(int),  // The size of the vector is determined by dividing blockSize by sizeof(int).
+                                            // This calculates how many integers can fit into the given block size.
+                                            // Example: If blockSize is 1024 bytes and sizeof(int) is 4 bytes,
+                                            // the vector will have 1024 / 4 = 256 elements.
+
+                1                // The initial value of each element in the vector.
+                                        // Here, all elements of the vector are initialized to the value 1.
+                                        // This ensures the block is filled with a known value, which may
+                                        // be useful for certain simulations or tests.
             );
 
+            // Update the total allocated memory counter
             memoryAllocated += blockSize;
+
+            // Store the allocated block in the linked list to maintain ownership and prevent deallocation
             memoryBlocks.push_back(std::move(block));
         }
     } catch (const std::bad_alloc &e) {
-        std::lock_guard<std::mutex> lock(consoleMutex);
+        // Handle memory allocation failure
+        std::lock_guard<std::mutex> lock(consoleMutex); // Ensure thread-safe console output
         std::cout << "\n"
-                  << ConsoleColors::RED
-                  << "Memory allocation failed: " << e.what()
-                  << ConsoleColors::RESET << std::endl;
+                << ConsoleColors::RED
+                << "Memory allocation failed: " << e.what()
+                << ConsoleColors::RESET << std::endl;
     }
 }
+
+
 
 void SystemStressTest::manageThreadPool() {
     while (running) {
