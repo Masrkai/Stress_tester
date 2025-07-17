@@ -8,7 +8,7 @@
 
 # Bash Scripts
 *.sh linguist-detectable=true
-*.bash linguist-language=Bash
+*.bash linguist-language=Shell
 *.bash linguist-detectable=true
 *.bashrc linguist-detectable=true
 
