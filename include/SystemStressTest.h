@@ -7,13 +7,12 @@
 #include <cstdint>
 
 #include "LinkedList.h"
+#include "TimeManager.h"
 
 class SystemStressTest {
 private:
-
     LinkedList<std::unique_ptr<std::vector<int>>> memoryBlocks;  // Keep this here instead of the function
                                                                  // because allocated pointer won't live in it
-
 
     static constexpr int    BAR_WIDTH = 30;                     // Progress bar width for time and memory displays
     static constexpr int    MULTIPLIER = 2;                     // Memory multiplier for stress test (resulting in a 2 GB Max Allocation)
@@ -29,14 +28,17 @@ private:
     std::mutex consoleMutex;
     std::vector<std::thread> cpuThreads;
 
+    // Reference to global time manager
+    TimeManager& timeManager;
+
     // Helper methods
     void clearLine() const;
     void displayMemoryStatus() const;
     void moveCursor(int lines, bool up) const;
-    void displayTimeProgress(int elapsedSeconds) const;
+    void displayTimeProgress() const;  // Removed parameter - now uses global time
 
     float getCurrentSystemLoad();
-    void  updateDisplay(int elapsedSeconds);
+    void  updateDisplay();  // Removed parameter - now uses global time
 
     // Stress test methods
     void memoryStressTest();
@@ -44,5 +46,6 @@ private:
     void cpuHashStressTest(int threadId);
 
 public:
+    SystemStressTest() : timeManager(TimeManager::getInstance()) {}
     void run();
 };

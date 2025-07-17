@@ -2,8 +2,10 @@
 #include "../include/ConsoleInitializer.h"
 #include "../include/ConsoleColors.h"
 #include "../include/LinkedList.h"
+#include "../include/TimeManager.h"
 
 #include <chrono>
+#include <iomanip>
 #include <memory>
 #include <cassert>
 #include <iostream>
@@ -19,9 +21,10 @@ float SystemStressTest::getCurrentSystemLoad() {
 
     // For now, return a value based on hash operations rate
     static uint64_t lastOps = 0;
-    static auto lastCheck = std::chrono::steady_clock::now();
-    auto currentTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastCheck).count();
+    static int64_t lastCheck = 0;
+
+    int64_t currentTime = timeManager.getElapsedMilliseconds();
+    int64_t duration = currentTime - lastCheck;
 
     if (duration == 0) return 0.5f;
     uint64_t currentOps = hashOps.load(std::memory_order_relaxed);
@@ -56,7 +59,7 @@ void SystemStressTest::displayMemoryStatus() const {
     // Build the memory usage progress bar
     std::string progressBar = "Memory: [";
     for (int i = 0; i < BAR_WIDTH; ++i) {
-        progressBar += (i < pos) ? 
+        progressBar += (i < pos) ?
             std::string(ConsoleColors::GREEN) + "■" + ConsoleColors::RESET :
             "□";
     }
@@ -70,12 +73,16 @@ void SystemStressTest::displayMemoryStatus() const {
               << adjustedTargetMemory / (1024 * 1024) << "MB" << std::flush;
 }
 
-void SystemStressTest::displayTimeProgress(int elapsedSeconds) const {
-    // Clamp elapsedSeconds to not exceed TEST_DURATION
-    elapsedSeconds = std::min(elapsedSeconds, TEST_DURATION);
+void SystemStressTest::displayTimeProgress() const {
+    // Get current elapsed time from global time manager
+    double elapsedSecondsDouble = timeManager.getElapsedSeconds();
+    int elapsedSeconds = static_cast<int>(elapsedSecondsDouble);
+
+    // Clamp elapsedSeconds to not exceed TEST_DURATION for display purposes
+    int displaySeconds = std::min(elapsedSeconds, TEST_DURATION);
 
     // Calculate the progress as a fraction of the total test duration
-    float progress = static_cast<float>(elapsedSeconds) / TEST_DURATION;
+    float progress = static_cast<float>(displaySeconds) / TEST_DURATION;
 
     // Map the progress fraction to a position on the progress bar
     int pos = static_cast<int>(BAR_WIDTH * progress);
@@ -97,19 +104,19 @@ void SystemStressTest::displayTimeProgress(int elapsedSeconds) const {
 
     // Output the progress bar, current elapsed time, and total test duration
     std::cout << progressBar << "] "
-              << elapsedSeconds << "s / "
+              << displaySeconds << "s / "
               << TEST_DURATION << "s" << std::flush;
 }
 
-void SystemStressTest::updateDisplay(int elapsedSeconds) {
+void SystemStressTest::updateDisplay() {
     // Lock the console to prevent concurrent access by multiple threads
     std::lock_guard<std::mutex> lock(consoleMutex);
 
     // Clear the current console line
     clearLine();
 
-    // Display the elapsed time
-    displayTimeProgress(elapsedSeconds);
+    // Display the elapsed time using global time manager
+    displayTimeProgress();
 
     // Output a newline to separate sections
     std::cout << std::endl;
@@ -154,12 +161,12 @@ void SystemStressTest::cpuHashStressTest(int threadId) {
 
     uint64_t localHashOps = 0;
 
-    // Main loop for stress testing
-    while (running) {
+    // Main loop for stress testing - now uses global time manager
+    while (running && timeManager.shouldContinue(TEST_DURATION)) {
         volatile uint64_t hashValue = 0;
 
         // Perform a batch of hash operations
-        for (int i = 0; i < BATCH_SIZE && running; ++i) {
+        for (int i = 0; i < BATCH_SIZE && running && timeManager.shouldContinue(TEST_DURATION); ++i) {
             // Generate pseudo-random input values
             volatile uint64_t randomBase = threadId * 123456789 + i * 987654321;
             volatile uint64_t randomExponent = ((i % 2000) + 500) * (threadId % 10 + 1);
@@ -192,12 +199,9 @@ void SystemStressTest::cpuHashStressTest(int threadId) {
 
 // Function to stress test memory allocation
 void SystemStressTest::memoryStressTest() {
-    // Linked list to store memory blocks (using unique_ptr for automatic memory management)
-    // LinkedList<std::unique_ptr<std::vector<int>>> memoryBlocks;
-
     try {
         // Loop to allocate memory until the target threshold is reached or the test is stopped
-        while (running && memoryAllocated < MULTIPLIER * TARGET_MEMORY) {
+        while (running && memoryAllocated < MULTIPLIER * TARGET_MEMORY && timeManager.shouldContinue(TEST_DURATION)) {
             static constexpr size_t blockSize = 1024 * 1024; // Block size of 1 MB
 
             // Create a unique pointer to a dynamically allocated vector of integers.
@@ -230,29 +234,27 @@ void SystemStressTest::memoryStressTest() {
     }
 }
 
-
-
 void SystemStressTest::manageThreadPool() {
-    while (running) {
+    while (running && timeManager.shouldContinue(TEST_DURATION)) {
         float systemLoad = getCurrentSystemLoad();
 
         std::lock_guard<std::mutex> lock(consoleMutex);
 
         if (systemLoad > 0.75f && cpuThreads.size() < static_cast<size_t>(numCores)) {
             cpuThreads.emplace_back(&SystemStressTest::cpuHashStressTest, this, cpuThreads.size());
-            std::cout << ConsoleColors::YELLOW 
-                     << "\nAdding thread due to high load (" 
-                     << systemLoad << ")" 
+            std::cout << ConsoleColors::YELLOW
+                     << "\nAdding thread due to high load ("
+                     << systemLoad << ")"
                      << ConsoleColors::RESET << std::flush;
-        } 
+        }
         else if (systemLoad < 0.25f && cpuThreads.size() > 1) {
             if (cpuThreads.back().joinable()) {
                 cpuThreads.back().join();
             }
             cpuThreads.pop_back();
-            std::cout << ConsoleColors::YELLOW 
-                     << "\nRemoving thread due to low load (" 
-                     << systemLoad << ")" 
+            std::cout << ConsoleColors::YELLOW
+                     << "\nRemoving thread due to low load ("
+                     << systemLoad << ")"
                      << ConsoleColors::RESET << std::flush;
         }
 
@@ -280,7 +282,7 @@ void SystemStressTest::run() {
     std::cin.get();
 
     // Detect the number of CPU cores
-    const auto numCores = std::thread::hardware_concurrency();
+    numCores = std::thread::hardware_concurrency();
     assert(numCores > 0 && "Failed to detect CPU cores");
 
     // Display detected cores
@@ -290,32 +292,29 @@ void SystemStressTest::run() {
 
     std::cout << "\nStarting stress test...\n\n" << std::flush;
 
-    // Record the starting time
-    auto startTime = std::chrono::steady_clock::now();
+    // Start the global timer
+    timeManager.startTimer();
 
     // Launch CPU stress test threads
     std::vector<std::thread> cpuThreads;
-    for (unsigned int i = 0; i < numCores; ++i) {
+    for (int i = 0; i < numCores; ++i) {
         cpuThreads.emplace_back(&SystemStressTest::cpuHashStressTest, this, i);
     }
 
     // Launch memory stress test thread
     std::thread memThread(&SystemStressTest::memoryStressTest, this);
 
-    // Monitoring loop
-    int elapsedSeconds = 0;
-    while (elapsedSeconds <= TEST_DURATION) {
-        auto elapsedTime = std::chrono::steady_clock::now() - startTime;
-        elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count();
-
-        updateDisplay(elapsedSeconds);
+    // Monitoring loop - now uses global time manager
+    while (timeManager.shouldContinue(TEST_DURATION)) {
+        updateDisplay();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
         moveCursor(2, true);
     }
 
-    // Signal all threads to stop
+    // Signal all threads to stop and end the timer
     running = false;
+    timeManager.endTimer();
 
     // Wait for all threads to complete
     for (auto& thread : cpuThreads) {
@@ -328,10 +327,7 @@ void SystemStressTest::run() {
         memThread.join();
     }
 
-    // Display test results
-    auto endTime = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-
+    // Display test results using precise timing
     std::cout << std::endl;
 
     std::cout << "\n\n" << ConsoleColors::MAGENTA
@@ -339,12 +335,13 @@ void SystemStressTest::run() {
               << ConsoleColors::RESET << std::endl;
 
     std::cout << ConsoleColors::CYAN
-              << "Total hashing operations: " << hashOps.load(std::memory_order_relaxed) 
+              << "Total hashing operations: " << hashOps.load(std::memory_order_relaxed)
               << " ops" << ConsoleColors::RESET << std::endl;
 
     std::cout << ConsoleColors::CYAN
-              << "Total execution time: " << duration.count() / 1000.0
-              << " seconds" << ConsoleColors::RESET << std::endl;
+              << "Total execution time: " << std::fixed << std::setprecision(3)
+              << timeManager.getElapsedSeconds() << " seconds"
+              << ConsoleColors::RESET << std::endl;
 
     std::cout << ConsoleColors::CYAN
               << "Maximum memory allocated: " << memoryAllocated / (1024 * 1024)
@@ -353,4 +350,7 @@ void SystemStressTest::run() {
     std::cout << ConsoleColors::CYAN
               << "CPU cores utilized: " << numCores
               << ConsoleColors::RESET << std::endl;
+
+    // Cleanup
+    TimeManager::cleanup();
 }
