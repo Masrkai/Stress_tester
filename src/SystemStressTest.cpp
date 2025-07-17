@@ -193,7 +193,7 @@ void SystemStressTest::cpuHashStressTest(int threadId) {
 // Function to stress test memory allocation
 void SystemStressTest::memoryStressTest() {
     // Linked list to store memory blocks (using unique_ptr for automatic memory management)
-    LinkedList<std::unique_ptr<std::vector<int>>> memoryBlocks;
+    // LinkedList<std::unique_ptr<std::vector<int>>> memoryBlocks;
 
     try {
         // Loop to allocate memory until the target threshold is reached or the test is stopped

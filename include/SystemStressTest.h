@@ -6,8 +6,15 @@
 #include <atomic>
 #include <cstdint>
 
+#include "LinkedList.h"
+
 class SystemStressTest {
 private:
+
+    LinkedList<std::unique_ptr<std::vector<int>>> memoryBlocks;  // Keep this here instead of the function
+                                                                 // because allocated pointer won't live in it
+
+
     static constexpr int    BAR_WIDTH = 30;                     // Progress bar width for time and memory displays
     static constexpr int    MULTIPLIER = 2;                     // Memory multiplier for stress test (resulting in a 2 GB Max Allocation)
     static constexpr int    TEST_DURATION = 30;                 // seconds
