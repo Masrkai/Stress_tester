@@ -104,22 +104,24 @@ static constexpr int    BANDWIDTH_ITERATIONS = 5;               // Number of ite
 ## Project Structure
 
 ```
- ├──  include
- │   ├──  ConsoleColors.h
- │   ├──  ConsoleInitializer.h
- │   ├──  LinkedList.h
- │   ├──  SystemStressTest.h
- │   └──  TimeManager.h
- ├──  src
- │   ├──  ConsoleInitializer.cpp
- │   ├──  main.cpp
- │   ├──  SystemStressTest.cpp
- │   └──  TimeManager.cpp
- ├──  .gitignore
- ├──  CMakeLists.txt
- ├──  LICENSE
- ├── 󰂺 README.md
- └──  shell.nix
+├──  include
+│   ├──  ConsoleColors.h
+│   ├──  ConsoleInitializer.h
+│   ├──  LinkedList.h
+│   ├──  SystemStressTest.h
+│   └──  TimeManager.h
+├──  src
+│   ├──  ConsoleInitializer.cpp
+│   ├──  main.cpp
+│   ├──  SystemStressTest.cpp
+│   └──  TimeManager.cpp
+├──  .gitattributes
+├──  .gitignore
+├──  CMakeLists.txt
+├──  LICENSE
+├── 󰂺 README.md
+├──  shell.nix
+└──  shell.sh
 ```
 
 ## Technical Details
