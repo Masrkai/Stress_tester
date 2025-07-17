@@ -91,29 +91,36 @@ The program will:
 Key parameters can be modified in `include/SystemStressTest.h`:
 
 ```cpp
-static constexpr int TEST_DURATION = 30;                    // Test duration in seconds
-static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; // Target memory (1GB)
-static constexpr int MULTIPLIER = 15;                       // Memory multiplier
-static constexpr int BAR_WIDTH = 30;                        // Progress bar width
+static constexpr int    BAR_WIDTH = 30;                     // Progress bar width for time and memory displays
+static constexpr int    MULTIPLIER = 2;                     // Memory multiplier for stress test (resulting in a 2 GB Max Allocation)
+static constexpr int    TEST_DURATION = 30;                 // seconds
+static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; // 1 GB
+
+// Memory bandwidth measurement constants
+static constexpr size_t BANDWIDTH_TEST_SIZE = 64 * 1024 * 1024; // 64MB test buffer
+static constexpr int    BANDWIDTH_ITERATIONS = 5;               // Number of iterations for averaging
 ```
 
 ## Project Structure
 
 ```
-SystemStressTest/
-├── CMakeLists.txt           # Build configuration
-├── shell.nix               # Nix development environment
-├── README.md               # This file
-├── .gitignore             # Git ignore rules
-├── include/               # Header files
-│   ├── ConsoleColors.h    # ANSI color definitions
-│   ├── ConsoleInitializer.h # Platform-specific console setup
-│   ├── LinkedList.h       # Custom linked list template
-│   └── SystemStressTest.h # Main stress test class
-└── src/                   # Source files
-    ├── main.cpp           # Entry point
-    ├── ConsoleInitializer.cpp # Console initialization
-    └── SystemStressTest.cpp   # Main implementation
+ ├──  include
+ │   ├──  ConsoleColors.h
+ │   ├──  ConsoleInitializer.h
+ │   ├──  LinkedList.h
+ │   ├──  SystemStressTest.h
+ │   └──  TimeManager.h
+ ├──  src
+ │   ├──  ConsoleInitializer.cpp
+ │   ├──  main.cpp
+ │   ├──  SystemStressTest.cpp
+ │   └──  TimeManager.cpp
+ ├──  .gitignore
+ ├──  CMakeLists.txt
+ ├──  LICENSE
+ ├── 󰂺 README.md
+ ├──  shell.nix
+ └──  structure.txt
 ```
 
 ## Technical Details
