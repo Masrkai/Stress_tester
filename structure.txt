@@ -1,0 +1,12 @@
+Stress_Tester/
+├── CMakeLists.txt
+├── shell.nix (your existing file)
+├── include/
+│   ├── ConsoleColors.h
+│   ├── ConsoleInitializer.h
+│   ├── LinkedList.h
+│   └── SystemStressTest.h
+└── src/
+    ├── main.cpp
+    ├── ConsoleInitializer.cpp
+    └── SystemStressTest.cpp

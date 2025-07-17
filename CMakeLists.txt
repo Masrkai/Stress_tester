@@ -1,29 +1,43 @@
-# Set minimum required CMake version
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 3.10)
+project(SystemStressTest)
 
-# Project name and language
-project(Stress_test CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+# Add compiler flags for optimization and warnings
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O2")
 
-set(EXE_NAME Stress_test.exe)
+# Platform-specific flags
+if(WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_WIN32")
+endif()
 
-# Define source and header files
-set(SOURCE_FILES src/main.cpp )
-#set(HEADER_FILES include/Recursive_Combination.hpp include/Recursive_Combination.hpp)
+# Include directories
+include_directories(include)
 
-# Define executable
-add_executable(
-               ${EXE_NAME}
-               ${SOURCE_FILES}
-               #${HEADER_FILES}
-              )
+# Source files
+set(SOURCES
+    src/main.cpp
+    src/ConsoleInitializer.cpp
+    src/SystemStressTest.cpp
+)
 
-# Find and link pthread library
+# Header files
+set(HEADERS
+    include/ConsoleInitializer.h
+    include/ConsoleColors.h
+    include/LinkedList.h
+    include/SystemStressTest.h
+)
+
+# Create executable
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+
+# Link threading library
 find_package(Threads REQUIRED)
-target_link_libraries(${EXE_NAME} PRIVATE Threads::Threads)
+target_link_libraries(${PROJECT_NAME} Threads::Threads)
 
-# Set binary output directory
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+# Platform-specific libraries
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} kernel32)
+endif()
