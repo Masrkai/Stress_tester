@@ -20,6 +20,7 @@ set(SOURCES
     src/main.cpp
     src/ConsoleInitializer.cpp
     src/SystemStressTest.cpp
+    src/TimeManager.cpp
 )
 
 # Header files
@@ -28,6 +29,7 @@ set(HEADERS
     include/ConsoleColors.h
     include/LinkedList.h
     include/SystemStressTest.h
+    include/TimeManager.h
 )
 
 # Create executable
