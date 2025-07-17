@@ -1,0 +1,18 @@
+# Nix Files
+*.nix linguist-detectable=true
+
+# Markdown Documentation
+*.md merge=union
+*.md linguist-detectable=true
+*.md linguist-documentation=false
+
+# Bash Scripts
+*.sh linguist-detectable=true
+*.bash linguist-language=Bash
+*.bash linguist-detectable=true
+*.bashrc linguist-detectable=true
+
+# C++ Source Code
+*.h linguist-detectable=true
+*.cpp linguist-detectable=true
+*.hpp linguist-detectable=true
