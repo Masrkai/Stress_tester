@@ -218,7 +218,7 @@ void SystemStressTest::memoryStressTest() {
             memoryAllocated += blockSize;
 
             // Store the allocated block in the linked list to maintain ownership and prevent deallocation
-            memoryBlocks.push_back(std::move(block));
+            memoryBlocks.Insert_At_End(std::move(block));
         }
     } catch (const std::bad_alloc &e) {
         // Handle memory allocation failure

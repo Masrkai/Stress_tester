@@ -34,7 +34,7 @@ public:
     }
 
     // Adds a new element to the end of the LinkedList using move semantics
-    void push_back(T &&value) {
+    void Insert_At_End(T &&value) {
         Node *newNode = new Node(std::move(value)); // Create a new node with the given value
         if (!head) { // If the list is empty, initialize both head and tail to the new node
             head = tail = newNode;
