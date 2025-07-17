@@ -1,4 +1,4 @@
-#include "SystemStressTest.h"
+#include "../include/SystemStressTest.h"
 
 int main() {
     SystemStressTest test;

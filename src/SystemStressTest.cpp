@@ -1,7 +1,7 @@
-#include "SystemStressTest.h"
-#include "ConsoleInitializer.h"
-#include "ConsoleColors.h"
-#include "LinkedList.h"
+#include "../include/SystemStressTest.h"
+#include "../include/ConsoleInitializer.h"
+#include "../include/ConsoleColors.h"
+#include "../include/LinkedList.h"
 
 #include <chrono>
 #include <memory>
