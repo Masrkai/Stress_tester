@@ -10,9 +10,9 @@ pkgs.mkShell {
     gdb
     cmake
     valgrind             # Memory analysis
-    perf                         # Performance profiling
+    # perf                         # Performance profiling
+    # linuxPackages.perf           # For system-wide perf tools
     flamegraph       # Brendan Gregg's Flamegraph tool
-    linuxPackages.perf           # For system-wide perf tools
     cppcheck             # Static analysis
     bear                  # Compilation database generator for clang tooling
     clang-tools          # Includes clang-tidy, clangd, etc.
