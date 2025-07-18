@@ -183,10 +183,6 @@ double SystemStressTest::performSequentialRead(uint8_t* buffer, size_t size) {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
 
-    // Prevent optimization
-    static volatile uint64_t dummy;
-    dummy = sum;
-
     return (static_cast<double>(size) / 1024.0 / 1024.0) / (duration.count() / 1e9);
 }
 
@@ -227,10 +223,6 @@ double SystemStressTest::performRandomAccess(uint8_t* buffer, size_t size) {
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-
-    // Prevent optimization
-    static volatile uint64_t dummy;
-    dummy = sum;
 
     return (static_cast<double>(size) / 1024.0 / 1024.0) / (duration.count() / 1e9);
 }
