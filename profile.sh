@@ -8,6 +8,7 @@ set -e
 PROJECT_NAME="SystemStressTest"
 PROFILING_DIR="profiling"
 RESULTS_DIR="profiling/perf_results"
+FLAMEGRAPH_DIR="flamegraphs"
 EXECUTABLE="$PROFILING_DIR/$PROJECT_NAME"
 
 # Colors for output
@@ -26,8 +27,9 @@ if [ ! -f "$EXECUTABLE" ]; then
     exit 1
 fi
 
-# Create results directory
+# Create results and flamegraph directories
 mkdir -p "$RESULTS_DIR"
+mkdir -p "$FLAMEGRAPH_DIR"
 cd "$RESULTS_DIR"
 
 # Check for required tools
@@ -107,9 +109,25 @@ else
     echo -e "${RED}✗ Function calls flame graph generation failed${NC}"
 fi
 
+# Copy SVG files to flamegraph directory
+echo -e "${YELLOW}Copying flame graphs to flamegraphs directory...${NC}"
+cd ../../  # Go back to project root
+
+# Copy all generated SVG files to flamegraph directory
+for svg_file in "$RESULTS_DIR"/*.svg; do
+    if [ -f "$svg_file" ]; then
+        cp "$svg_file" "$FLAMEGRAPH_DIR"/
+        echo -e "${GREEN}✓ Copied $(basename "$svg_file") to flamegraphs/${NC}"
+    fi
+done
+
+# Go back to results directory for the rest of the script
+cd "$RESULTS_DIR"
+
 # Generate summary report
 echo -e "${BLUE}=== Profiling Complete ===${NC}"
 echo -e "${GREEN}Results saved in: $(pwd)${NC}"
+echo -e "${GREEN}Flame graphs copied to: $(pwd)/../../flamegraphs${NC}"
 echo ""
 echo -e "${YELLOW}Generated Files:${NC}"
 echo "  • cpu_flamegraph.svg     - CPU hotspots and execution time"
@@ -121,7 +139,7 @@ echo "  • cpu_profile.data       - Raw CPU profiling data"
 echo "  • memory_profile.data    - Raw memory profiling data"
 echo "  • calls_profile.data     - Raw call profiling data"
 echo ""
-echo -e "${BLUE}To view flame graphs, open the .svg files in a web browser${NC}"
+echo -e "${BLUE}To view flame graphs, open the .svg files in the flamegraphs/ directory${NC}"
 
 # Optional: Generate perf report summaries
 echo ""
@@ -133,3 +151,6 @@ echo -e "${GREEN}✓ Text reports generated${NC}"
 
 echo ""
 echo -e "${GREEN}Profiling session completed successfully!${NC}"
+echo -e "${BLUE}Flame graphs are available in both:${NC}"
+echo -e "  • ${RESULTS_DIR}/ (original location)"
+echo -e "  • flamegraphs/ (convenient access)"
