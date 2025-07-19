@@ -1,3 +1,8 @@
+#Dolphine Folder icons
 result
-build
 .directory
+
+# DIrectories
+build
+debug
+profiling

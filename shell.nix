@@ -20,7 +20,10 @@ pkgs.mkShell {
   ];
 
   # Environment variables to support profiling tools and compilers
-  shellHook = builtins.readFile ./shell.sh;
+  shellHook = "
+  ${builtins.readFile ./shell.sh}
+  ${builtins.readFile ./flamegraph.sh}
+  " ;
 
   # Avoid overriding PS1
   stdenv.shell.dontRebuildPrompt = true;
