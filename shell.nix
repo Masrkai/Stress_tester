@@ -4,27 +4,24 @@
 
 { pkgs ? import <nixpkgs> {} }:
 
+let
+  # use nixos-rebuild to get the system config
+  systemConfig = (import <nixpkgs/nixos> {}).config;
+  kernelPackages = systemConfig.boot.kernelPackages;
+in
+
 pkgs.mkShell {
   packages = with pkgs; [
     gcc
-    gdb
     cmake
-    valgrind             # Memory analysis
-    # perf                         # Performance profiling
-    # linuxPackages.perf           # For system-wide perf tools
-    flamegraph       # Brendan Gregg's Flamegraph tool
-    cppcheck             # Static analysis
-    bear                  # Compilation database generator for clang tooling
-    clang-tools          # Includes clang-tidy, clangd, etc.
-    ccache               # Speeds up repeated builds
+
+    # Profiling
+    flamegraph
+      kernelPackages.perf # Needed By FlameGraph
   ];
 
-  # Environment variables to support profiling tools and compilers
-  shellHook = "
-  ${builtins.readFile ./shell.sh}
-  ${builtins.readFile ./flamegraph.sh}
-  " ;
-
-  # Avoid overriding PS1
-  stdenv.shell.dontRebuildPrompt = true;
+  shellHook = ''
+    ${builtins.readFile ./shell.sh}
+    ${builtins.readFile ./flamegraph.sh}
+  '';
 }
