@@ -22,6 +22,5 @@ pkgs.mkShell {
 
   shellHook = ''
     ${builtins.readFile ./shell.sh}
-    ${builtins.readFile ./flamegraph.sh}
   '';
 }
