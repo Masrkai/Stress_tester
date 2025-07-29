@@ -1,4 +1,4 @@
-#include "../include/ConsoleInitializer.h"
+#include "../include/ConsoleInitializer.hpp"
 #include <cassert>
 
 namespace ConsoleInitializer {

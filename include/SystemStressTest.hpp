@@ -6,8 +6,8 @@
 #include <atomic>
 #include <cstdint>
 
-#include "LinkedList.h"
-#include "TimeManager.h"
+#include "LinkedList.hpp"
+#include "TimeManager.hpp"
 
 class SystemStressTest {
 private:

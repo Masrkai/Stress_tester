@@ -1,8 +1,8 @@
-#include "../include/SystemStressTest.h"
-#include "../include/ConsoleInitializer.h"
-#include "../include/ConsoleColors.h"
-#include "../include/LinkedList.h"
-#include "../include/TimeManager.h"
+#include "../include/SystemStressTest.hpp"
+#include "../include/ConsoleInitializer.hpp"
+#include "../include/ConsoleColors.hpp"
+#include "../include/LinkedList.hpp"
+#include "../include/TimeManager.hpp"
 
 #include <chrono>
 #include <iomanip>
