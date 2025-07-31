@@ -46,8 +46,8 @@ pkgs.mkShell {
   shellHook = "
 
     ${builtins.readFile ./shell.sh}
-    ${builtins.readFile ./profile.sh}
   ";
+    # ${builtins.readFile ./profile.sh}
     # # Store original values to restore on exit
     # export ORIG_KPTR_RESTRICT=$(cat /proc/sys/kernel/kptr_restrict 2>/dev/null || echo "unknown")
     # export ORIG_PERF_PARANOID=$(cat /proc/sys/kernel/perf_event_paranoid 2>/dev/null || echo "unknown")
