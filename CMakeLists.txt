@@ -44,11 +44,11 @@ set(SOURCES
 
 # Header files
 set(HEADERS
-    include/ConsoleInitializer.h
-    include/ConsoleColors.h
-    include/LinkedList.h
-    include/SystemStressTest.h
-    include/TimeManager.h
+    include/ConsoleInitializer.hpp
+    include/ConsoleColors.hpp
+    include/LinkedList.hpp
+    include/SystemStressTest.hpp
+    include/TimeManager.hpp
 )
 
 # Create executable
