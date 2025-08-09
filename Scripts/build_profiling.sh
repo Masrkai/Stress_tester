@@ -1,33 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-echo "Automatic Build Environment"
-
-# Create and navigate to the build directory (default release build)
-build_dir="build"
-mkdir -p "$build_dir"
-cd "$build_dir"
-
-# Run CMake and Make for release build
-echo "Building Release version..."
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
-
-echo "Release build completed in '$build_dir' directory."
-
-# Return to project root
-cd ..
-
-# Also build profiling version automatically
+# build profiling version automatically
 echo ""
-echo "Building Profiling version for performance analysis..."
 profiling_dir="profiling"
 mkdir -p "$profiling_dir"
 cd "$profiling_dir"
 
+echo "Building Profiling version for performance analysis..."
 cmake -DCMAKE_BUILD_TYPE=Profiling ..
 make
 
-echo "Profiling build completed in '$profiling_dir' directory."
+echo "Profiling build completed in '$profiling_dir' directory!"
 
 # Return to project root
 cd ..

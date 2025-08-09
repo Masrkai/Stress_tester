@@ -44,7 +44,7 @@ echo -e "${YELLOW}[1/3] CPU Performance Analysis${NC}"
 echo "Recording CPU events with call stacks..."
 
 # Reduced frequency and using frame pointers for reliability
-perf record -F 499 -g --call-graph fp --mmap-pages=256 -o cpu_profile.data ../../"$EXECUTABLE" "$@"
+perf record -F 499 -g --call-graph fp --mmap-pages=128 -o cpu_profile.data ../../"$EXECUTABLE" "$@"
 
 # Check if recording was successful
 if [ $? -ne 0 ]; then
@@ -92,7 +92,7 @@ echo -e "${YELLOW}[3/3] Function Call Frequency Analysis${NC}"
 echo "Recording high-frequency samples for call patterns..."
 
 # Moderate frequency sampling for detailed function call analysis
-perf record -F 999 -g --call-graph fp --mmap-pages=256 -o calls_profile.data ../../"$EXECUTABLE" "$@"
+perf record -F 999 -g --call-graph fp --mmap-pages=128 -o calls_profile.data ../../"$EXECUTABLE" "$@"
 
 # Check if recording was successful
 if [ $? -ne 0 ]; then
