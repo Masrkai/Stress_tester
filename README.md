@@ -103,13 +103,25 @@ static constexpr int    BANDWIDTH_ITERATIONS = 5;               // Number of ite
 
 ## Project Structure
 the icons are present because I use [eza](https://github.com/eza-community/eza) project set it up if you want them too
-```
+```bash
+$ eza  --color=always --group-directories-first --long --git --icons=always --links -a --tree --ignore-glob="*.log|*.tmp|.git|profiling|build"
+
+ .
+├──  flamegraphs
+│   ├── 󰕙 calls_flamegraph.svg
+│   ├── 󰕙 cpu_flamegraph.svg
+│   └── 󰕙 memory_flamegraph.svg
 ├──  include
-│   ├──  ConsoleColors.h
-│   ├──  ConsoleInitializer.h
-│   ├──  LinkedList.h
-│   ├──  SystemStressTest.h
-│   └──  TimeManager.h
+│   ├──  ConsoleColors.hpp
+│   ├──  ConsoleInitializer.hpp
+│   ├──  LinkedList.hpp
+│   ├──  SystemStressTest.hpp
+│   └──  TimeManager.hpp
+├──  Scripts
+│   ├──  build_profiling.sh
+│   ├──  build_release.sh
+│   ├──  kernel_security_bypass.sh
+│   └──  profile.sh
 ├──  src
 │   ├──  ConsoleInitializer.cpp
 │   ├──  main.cpp
@@ -120,8 +132,7 @@ the icons are present because I use [eza](https://github.com/eza-community/eza) 
 ├──  CMakeLists.txt
 ├──  LICENSE
 ├── 󰂺 README.md
-├──  shell.nix
-└──  shell.sh
+└──  shell.nix
 ```
 
 ## Technical Details
