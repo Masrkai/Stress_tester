@@ -38,8 +38,10 @@ include_directories(include)
 set(SOURCES
     src/main.cpp
     src/ConsoleInitializer.cpp
-    src/SystemStressTest.cpp
     src/TimeManager.cpp
+
+    src/CPUStressTest.cpp      
+    src/MemoryStressTest.cpp   
 )
 
 # Header files
@@ -47,8 +49,10 @@ set(HEADERS
     include/ConsoleInitializer.hpp
     include/ConsoleColors.hpp
     include/LinkedList.hpp
-    include/SystemStressTest.hpp
     include/TimeManager.hpp
+
+    include/CPUStressTest.hpp     
+    include/MemoryStressTest.hpp  
 )
 
 # Create executable
