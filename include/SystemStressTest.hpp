@@ -44,11 +44,11 @@ private:
     void clearLine() const;
     void displayMemoryStatus() const;
     void moveCursor(int lines, bool up) const;
-    void displayTimeProgress() const;  // Removed parameter - now uses global time
+    void displayTimeProgress() const;
     void displayBandwidthStatus() const;
 
     float getCurrentSystemLoad();
-    void  updateDisplay();  // Removed parameter - now uses global time
+    void  updateDisplay();
 
     // Memory bandwidth measurement methods
     void measureMemoryBandwidth();
