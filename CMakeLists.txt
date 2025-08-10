@@ -40,8 +40,8 @@ set(SOURCES
     src/ConsoleInitializer.cpp
     src/TimeManager.cpp
 
-    src/CPUStressTest.cpp      
-    src/MemoryStressTest.cpp   
+    src/CPUStressTest.cpp
+    src/MemoryStressTest.cpp
 )
 
 # Header files
@@ -51,8 +51,8 @@ set(HEADERS
     include/LinkedList.hpp
     include/TimeManager.hpp
 
-    include/CPUStressTest.hpp     
-    include/MemoryStressTest.hpp  
+    include/CPUStressTest.hpp
+    include/MemoryStressTest.hpp
 )
 
 # Create executable
