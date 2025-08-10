@@ -88,17 +88,17 @@ The program will:
 
 ### Configuration
 
-Key parameters can be modified in `include/SystemStressTest.h`:
+Key parameters can be modified in `include/MemoryStressTest.hpp` for memory :
 
 ```cpp
-static constexpr int    BAR_WIDTH = 30;                     // Progress bar width for time and memory displays
-static constexpr int    MULTIPLIER = 2;                     // Memory multiplier for stress test (resulting in a 2 GB Max Allocation)
-static constexpr int    TEST_DURATION = 30;                 // seconds
-static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; // 1 GB
+    static constexpr int    MULTIPLIER = 2;                     // Memory multiplier for stress test (resulting in a 2 GB Max Allocation)
+    static constexpr int    TEST_DURATION = 30;                 // seconds
+    static constexpr size_t TARGET_MEMORY = 1024 * 1024 * 1024; // 1 GB
 
-// Memory bandwidth measurement constants
-static constexpr size_t BANDWIDTH_TEST_SIZE = 64 * 1024 * 1024; // 64MB test buffer
-static constexpr int    BANDWIDTH_ITERATIONS = 5;               // Number of iterations for averaging
+    // Memory bandwidth measurement constants
+    static constexpr size_t BANDWIDTH_TEST_SIZE = 64 * 1024 * 1024; // 64MB test buffer
+    static constexpr int    BANDWIDTH_ITERATIONS = 5;               // Number of iterations for averaging
+
 ```
 
 ## Project Structure
@@ -107,6 +107,8 @@ the icons are present because I use [eza](https://github.com/eza-community/eza) 
 $ eza  --color=always --group-directories-first --long --git --icons=always --links -a --tree --ignore-glob="*.log|*.tmp|.git|profiling|build"
 
  .
+├──  .vscode
+│   └──  settings.json
 ├──  flamegraphs
 │   ├── 󰕙 calls_flamegraph.svg
 │   ├── 󰕙 cpu_flamegraph.svg
@@ -114,8 +116,9 @@ $ eza  --color=always --group-directories-first --long --git --icons=always --li
 ├──  include
 │   ├──  ConsoleColors.hpp
 │   ├──  ConsoleInitializer.hpp
+│   ├──  CPUStressTest.hpp
 │   ├──  LinkedList.hpp
-│   ├──  SystemStressTest.hpp
+│   ├──  MemoryStressTest.hpp
 │   └──  TimeManager.hpp
 ├──  Scripts
 │   ├──  build_profiling.sh
@@ -124,8 +127,9 @@ $ eza  --color=always --group-directories-first --long --git --icons=always --li
 │   └──  profile.sh
 ├──  src
 │   ├──  ConsoleInitializer.cpp
+│   ├──  CPUStressTest.cpp
 │   ├──  main.cpp
-│   ├──  SystemStressTest.cpp
+│   ├──  MemoryStressTest.cpp
 │   └──  TimeManager.cpp
 ├──  .gitattributes
 ├──  .gitignore
@@ -133,6 +137,7 @@ $ eza  --color=always --group-directories-first --long --git --icons=always --li
 ├──  LICENSE
 ├── 󰂺 README.md
 └──  shell.nix
+
 ```
 
 ## Technical Details
