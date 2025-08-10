@@ -1,0 +1,15 @@
+{
+    "cSpell.ignoreWords": [
+        "DCMAKE",
+        "DDEBUG",
+        "DNDEBUG",
+        "DPROFILING",
+        "STREQUAL",
+        "Wextra",
+        "coreutils",
+        "flamegraph",
+        "gtest",
+        "kptr",
+        "stdenv"
+    ]
+}
