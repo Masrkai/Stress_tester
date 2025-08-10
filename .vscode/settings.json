@@ -11,5 +11,6 @@
         "gtest",
         "kptr",
         "stdenv"
-    ]
+    ],
+    "nixEnvSelector.nixFile": "${workspaceFolder}/shell.nix"
 }
