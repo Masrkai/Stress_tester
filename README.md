@@ -131,13 +131,17 @@ $ eza  --color=always --group-directories-first --long --git --icons=always --li
 │   ├──  main.cpp
 │   ├──  MemoryStressTest.cpp
 │   └──  TimeManager.cpp
+├──  tests
+│   ├──  test_cpustresstest.cpp
+│   ├──  test_linkedlist.cpp
+│   ├──  test_memorystresstest.cpp
+│   └──  test_timemanager.cpp
 ├──  .gitattributes
 ├──  .gitignore
 ├──  CMakeLists.txt
 ├──  LICENSE
 ├── 󰂺 README.md
 └──  shell.nix
-
 ```
 
 ## Technical Details
